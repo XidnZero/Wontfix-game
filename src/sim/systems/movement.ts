@@ -42,7 +42,7 @@ function nextWaypoint(path: Vec2[], pos: Vec2): Vec2 | null {
   if (path.length === 1) return path[0];
 
   let bestDist = Infinity;
-  let bestSegmentEnd = path[path.length - 1];
+  let bestIdx = 0;
 
   for (let i = 0; i < path.length - 1; i++) {
     const a = path[i];
@@ -56,10 +56,23 @@ function nextWaypoint(path: Vec2[], pos: Vec2): Vec2 | null {
     const d = len(sub(pos, closest));
     if (d < bestDist) {
       bestDist = d;
-      bestSegmentEnd = b;
+      bestIdx = i;
     }
   }
-  return bestSegmentEnd;
+
+  // The nearest segment's far end is the natural next target, but if the
+  // unit is already standing on top of it (having just arrived, or having
+  // overshot on a fast tick) that end is a stale waypoint, not the
+  // destination — keep walking forward until we find one that's actually
+  // ahead, stopping only at the path's true end.
+  let targetIdx = bestIdx + 1;
+  while (
+    targetIdx < path.length - 1 &&
+    len(sub(path[targetIdx], pos)) <= C.WAYPOINT_ARRIVAL_RADIUS
+  ) {
+    targetIdx++;
+  }
+  return path[targetIdx];
 }
 
 function destinationFor(ctx: TickContext, unit: Unit): Vec2 | null {
