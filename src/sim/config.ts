@@ -12,6 +12,7 @@
 
 export const TICK_HZ = 20;
 export const TICK_MS = 1000 / TICK_HZ;
+export const TICK_S = 1 / TICK_HZ;
 
 /** Convert design-doc seconds into tick counts. */
 export const secs = (s: number): number => Math.round(s * TICK_HZ);
@@ -89,6 +90,9 @@ export const CREW_DIES_WITH_VEHICLE = true;
 /** Ticks a squad spends boarding, exposed and unable to fire. */
 export const MOUNT_TICKS = secs(1.5);
 
+/** How close a foot squad must be to its factory to start mounting. */
+export const MOUNT_RADIUS = 40;
+
 /**
  * Target: a crewed tank should be worth roughly this many on-foot squads in
  * combat power, or nobody takes the bet. The single biggest balance dial.
@@ -156,6 +160,94 @@ export const SPATIAL_CELL_SIZE = 64;
 
 /** Flow field resolution, in world units per cell. */
 export const FLOW_CELL_SIZE = 16;
+
+// ---------------------------------------------------------------------------
+// Movement — placeholder balance numbers, not yet settled in a design doc.
+// Chosen so the vertical slice is playable; expect these to move once the
+// capture-feel / mounted-vs-foot / drop-cadence questions get real answers.
+// ---------------------------------------------------------------------------
+
+export const FOOT_SPEED = 40; // world units/sec
+
+export const CHASSIS_SPEED: Record<string, number> = {
+  scout: 90,
+  tank: 55,
+  jammer: 60,
+  repair: 60,
+  aiScout: 90,
+  aiTank: 55,
+  boarder: 70,
+  relay: 55,
+  airgapped: 55,
+  assembler: 40,
+};
+
+/** Distance at which a unit is considered to have arrived at its destination. */
+export const WAYPOINT_ARRIVAL_RADIUS = 12;
+
+/** How far apart units push to avoid stacking on top of each other. */
+export const SEPARATION_RADIUS = 18;
+export const SEPARATION_FORCE = 30;
+
+// ---------------------------------------------------------------------------
+// Combat — same placeholder caveat as movement.
+// ---------------------------------------------------------------------------
+
+export const FOOT_HP_PER_BODY = 20;
+
+export const CHASSIS_HP: Record<string, number> = {
+  scout: 80,
+  tank: 260,
+  jammer: 90,
+  repair: 100,
+  aiScout: 80,
+  aiTank: 260,
+  boarder: 150,
+  relay: 140,
+  airgapped: 180,
+  assembler: 400,
+};
+
+/** Per-body damage. A crewed tank should read as ~TANK_POWER_RATIO squads. */
+export const FOOT_DAMAGE_PER_BODY: Record<'rifle' | 'antiArmour', number> = {
+  rifle: 3,
+  antiArmour: 6,
+};
+
+export const CHASSIS_DAMAGE: Record<string, number> = {
+  scout: 8,
+  tank: 30,
+  jammer: 0,
+  repair: 0,
+  aiScout: 8,
+  aiTank: 30,
+  boarder: 14,
+  relay: 10,
+  airgapped: 12,
+  assembler: 0,
+};
+
+export const FOOT_RANGE = 70;
+
+export const CHASSIS_RANGE: Record<string, number> = {
+  scout: 90,
+  tank: 120,
+  jammer: 0,
+  repair: 0,
+  aiScout: 90,
+  aiTank: 120,
+  boarder: 90,
+  relay: 110,
+  airgapped: 100,
+  assembler: 0,
+};
+
+/** How far a unit will notice an enemy worth engaging while it moves. */
+export const AGGRO_RANGE = 160;
+
+export const ATTACK_COOLDOWN_TICKS = secs(1);
+
+export const REPAIR_RATE_PER_TICK = 2;
 
 // ---------------------------------------------------------------------------
 // Design constraints, checked by instrumentation rather than enforced by code

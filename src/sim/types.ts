@@ -125,6 +125,9 @@ export interface Unit {
   /** Player has pulled this unit out of its lane. Rejoins at nearest point. */
   detached: boolean;
 
+  /** Destination set by `IssueMove`. Only meaningful while `detached`. */
+  manualTarget: Vec2 | null;
+
   state: UnitState;
   stateTimer: number;
   targetId: UnitId | null;

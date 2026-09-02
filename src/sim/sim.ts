@@ -15,6 +15,26 @@ import type { Command, SimEvent } from './io';
 import type { MissionState, Unit, UnitId } from './types';
 import { AiVersion } from './types';
 
+import { applyCommands } from './systems/commands';
+import { stepAiUpgradeClock } from './systems/aiUpgradeClock';
+import { stepAiPlanning } from './systems/aiPlanning';
+import { stepFactories } from './systems/factories';
+import { stepDropships } from './systems/dropships';
+import { stepLaneAdoption } from './systems/laneAdoption';
+import { stepMovement } from './systems/movement';
+import { stepMounting } from './systems/mounting';
+import { stepReboot } from './systems/reboot';
+import { stepAuras } from './systems/auras';
+import { stepReclaim } from './systems/reclaim';
+import { stepTargeting } from './systems/targeting';
+import { stepCombat } from './systems/combat';
+import { stepDeaths } from './systems/deaths';
+import { stepCapture } from './systems/capture';
+import { stepTerritoryTempo } from './systems/territoryTempo';
+import { stepWinLose } from './systems/winLose';
+import { stepEndOfLifeRipple } from './systems/endOfLife';
+import { createSpatialGrid } from './systems/spatial';
+
 // ---------------------------------------------------------------------------
 // Tick context — the scratch space a single tick shares between systems
 // ---------------------------------------------------------------------------
@@ -37,7 +57,7 @@ export interface SpatialGrid {
 // ---------------------------------------------------------------------------
 
 export function tick(state: MissionState, commands: Command[]): SimEvent[] {
-  const ctx: TickContext = { state, events: [], grid: getGrid() };
+  const ctx: TickContext = { state, events: [], grid: createSpatialGrid() };
 
   // 0. Player intent. Applied before anything else so a redraw issued this
   //    frame is visible to every system below it.
@@ -112,31 +132,7 @@ export function tick(state: MissionState, commands: Command[]): SimEvent[] {
 }
 
 // ---------------------------------------------------------------------------
-// System signatures — implement each in its own file under sim/systems/
-// ---------------------------------------------------------------------------
-
-type System = (ctx: TickContext) => void;
-
-declare function applyCommands(ctx: TickContext, commands: Command[]): void;
-declare const stepAiUpgradeClock: System;
-declare const stepAiPlanning: System;
-declare const stepFactories: System;
-declare const stepDropships: System;
-declare const stepLaneAdoption: System;
-declare const stepMovement: System;
-declare const stepMounting: System;
-declare const stepReboot: System;
-declare const stepAuras: System;
-declare const stepReclaim: System;
-declare const stepTargeting: System;
-declare const stepCombat: System;
-declare const stepDeaths: System;
-declare const stepCapture: System;
-declare const stepTerritoryTempo: System;
-declare const stepWinLose: System;
-declare const stepEndOfLifeRipple: System;
-declare function getGrid(): SpatialGrid;
-
+// Two rules worth writing down as code, because they are easy to get wrong
 // ---------------------------------------------------------------------------
 // Two rules worth writing down as code, because they are easy to get wrong
 // ---------------------------------------------------------------------------
