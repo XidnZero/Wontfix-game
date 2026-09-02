@@ -11,15 +11,31 @@ import * as C from '../config';
 import type { TickContext } from '../sim';
 import type { Factory, Unit } from '../types';
 
+/**
+ * Index of the first parked vehicle actually available to crew. A vehicle
+ * the player has grabbed (`detached`) is still sitting in `parked` — it just
+ * isn't up for auto-crewing anymore, so a manual move order on it can't be
+ * silently overwritten by the next squad through the factory.
+ */
+function availableParkedIndex(ctx: TickContext, factory: Factory): number {
+  return factory.parked.findIndex((id) => {
+    const v = ctx.state.units.find((u) => u.id === id);
+    return v !== undefined && !v.detached;
+  });
+}
+
 function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void {
-  const vehicleId = factory.parked.shift();
-  if (vehicleId === undefined) {
-    // Lost the race to another squad this tick; go back to walking.
+  const vehicleIdx = availableParkedIndex(ctx, factory);
+  if (vehicleIdx < 0) {
+    // Lost the race to another squad this tick, or the only parked vehicle
+    // got grabbed out from under it; go back to walking.
     footUnit.state = 'moving';
     footUnit.stateTimer = 0;
     return;
   }
 
+  const vehicleId = factory.parked[vehicleIdx];
+  factory.parked.splice(vehicleIdx, 1);
   const vehicle = ctx.state.units.find((u) => u.id === vehicleId);
   if (!vehicle) return;
 
@@ -62,7 +78,7 @@ export function stepMounting(ctx: TickContext): void {
         continue;
       }
 
-      if (factory.parked.length === 0) continue;
+      if (availableParkedIndex(ctx, factory) < 0) continue;
       const dx = unit.pos.x - factory.pos.x;
       const dy = unit.pos.y - factory.pos.y;
       if (dx * dx + dy * dy > C.MOUNT_RADIUS * C.MOUNT_RADIUS) continue;

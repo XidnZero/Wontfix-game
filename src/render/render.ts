@@ -21,8 +21,20 @@ function lerp(a: Vec2, b: Vec2, t: number): Vec2 {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
+export interface DragRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
 export interface Renderer {
-  render(state: MissionState, alpha: number): void;
+  render(
+    state: MissionState,
+    alpha: number,
+    selected: ReadonlySet<UnitId>,
+    dragRect: DragRect | null,
+  ): void;
   destroy(): void;
 }
 
@@ -30,7 +42,8 @@ export function createRenderer(app: Application): Renderer {
   const world = new Container();
   const furniture = new Graphics();
   const units = new Graphics();
-  world.addChild(furniture, units);
+  const overlay = new Graphics();
+  world.addChild(furniture, units, overlay);
   app.stage.addChild(world);
 
   let lastTick = -1;
@@ -76,7 +89,12 @@ export function createRenderer(app: Application): Renderer {
   }
 
   return {
-    render(state: MissionState, alpha: number): void {
+    render(
+      state: MissionState,
+      alpha: number,
+      selected: ReadonlySet<UnitId>,
+      dragRect: DragRect | null,
+    ): void {
       if (state.tick !== lastTick) {
         prevPos = currPos;
         currPos = new Map(state.units.map((u) => [u.id, { ...u.pos }]));
@@ -105,6 +123,22 @@ export function createRenderer(app: Application): Renderer {
           units.circle(pos.x, pos.y, 10);
           units.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
         }
+
+        if (selected.has(unit.id)) {
+          units.circle(pos.x, pos.y, 13);
+          units.stroke({ width: 1.5, color: 0xffd23f, alpha: 0.9 });
+        }
+      }
+
+      overlay.clear();
+      if (dragRect) {
+        const x = Math.min(dragRect.x0, dragRect.x1);
+        const y = Math.min(dragRect.y0, dragRect.y1);
+        const w = Math.abs(dragRect.x1 - dragRect.x0);
+        const h = Math.abs(dragRect.y1 - dragRect.y0);
+        overlay.rect(x, y, w, h);
+        overlay.fill({ color: 0xffd23f, alpha: 0.08 });
+        overlay.stroke({ width: 1, color: 0xffd23f, alpha: 0.6 });
       }
     },
 

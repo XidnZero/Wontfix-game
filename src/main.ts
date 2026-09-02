@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     sim,
     (events) => ui.handleEvents(events),
     (alpha) => {
-      renderer.render(sim.state, alpha);
+      renderer.render(sim.state, alpha, ui.getSelection(), ui.getDragRect());
       ui.update(sim.state);
     },
   );
