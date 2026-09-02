@@ -60,6 +60,9 @@ export const MAX_VETERANCY = 3;
 /** Ticks to top a thinned squad back up while standing on a friendly LZ. */
 export const SQUAD_REINFORCE_TICKS = secs(6);
 
+/** How close to a friendly LZ counts as "standing on it" for reinforcement. */
+export const REINFORCE_RADIUS = 100;
+
 // ---------------------------------------------------------------------------
 // Factories
 // ---------------------------------------------------------------------------

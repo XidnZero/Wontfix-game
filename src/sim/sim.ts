@@ -29,6 +29,7 @@ import { stepReclaim } from './systems/reclaim';
 import { stepTargeting } from './systems/targeting';
 import { stepCombat } from './systems/combat';
 import { stepDeaths } from './systems/deaths';
+import { stepReinforcement } from './systems/reinforcement';
 import { stepCapture } from './systems/capture';
 import { stepTerritoryTempo } from './systems/territoryTempo';
 import { stepWinLose } from './systems/winLose';
@@ -113,13 +114,17 @@ export function tick(state: MissionState, commands: Command[]): SimEvent[] {
     //     vehicle emits both UnitDestroyed and CrewLost.
     stepDeaths(ctx);
 
-    // 15. Capture. CAPTURE_TICKS, flat rate, frozen while contested.
+    // 15. Reinforcement. Squad bodies track hp taken this tick's combat, and
+    //     top back up near a friendly LZ.
+    stepReinforcement(ctx);
+
+    // 16. Capture. CAPTURE_TICKS, flat rate, frozen while contested.
     stepCapture(ctx);
 
-    // 16. Tempo. zonesHeld -> dropIntervalTicks, with diminishing returns.
+    // 17. Tempo. zonesHeld -> dropIntervalTicks, with diminishing returns.
     stepTerritoryTempo(ctx);
 
-    // 17. Resolution. Win on all factories; lose on the zero-zone clock.
+    // 18. Resolution. Win on all factories; lose on the zero-zone clock.
     stepWinLose(ctx);
   } else if (state.phase === 'endOfLife') {
     // The shutdown ripples over END_OF_LIFE_RIPPLE_TICKS rather than resolving
@@ -131,8 +136,6 @@ export function tick(state: MissionState, commands: Command[]): SimEvent[] {
   return ctx.events;
 }
 
-// ---------------------------------------------------------------------------
-// Two rules worth writing down as code, because they are easy to get wrong
 // ---------------------------------------------------------------------------
 // Two rules worth writing down as code, because they are easy to get wrong
 // ---------------------------------------------------------------------------
