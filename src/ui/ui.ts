@@ -6,11 +6,12 @@
  * Controls, RTS-standard: left-drag box-selects player units, right-click
  * grabs the selection and sends it to the click point (Tier 2: GrabUnits +
  * IssueMove), 'R' releases the selection back to lane control. Shift+drag
- * redraws the player's one starting lane as a straight line — a stand-in for
- * proper multi-waypoint lane drawing, good enough to test capture feel by
- * hand. 'S'/'L' save/load through the platform boundary — the payoff for
- * MissionState being plain serializable data (README rule 2): a snapshot is
- * just `JSON.stringify`, and loading one back is just replacing the field.
+ * redraws the player's one starting lane, sampling points along the actual
+ * drag path (not just start/end) so it's a real multi-waypoint lane, not a
+ * single straight segment. 'S'/'L' save/load through the platform boundary —
+ * the payoff for MissionState being plain serializable data (README rule 2):
+ * a snapshot is just `JSON.stringify`, and loading one back is just
+ * replacing the field.
  */
 
 import type { Application } from 'pixi.js';
@@ -18,7 +19,7 @@ import * as C from '../sim/config';
 import type { Clock } from '../app/clock';
 import type { Simulation } from '../sim/sim';
 import type { SimEvent } from '../sim/io';
-import type { MissionState, UnitId } from '../sim/types';
+import type { MissionState, UnitId, Vec2 } from '../sim/types';
 import type { DragRect } from '../render/render';
 import type { Platform } from '../platform/platform';
 
@@ -29,6 +30,7 @@ export interface UiHandle {
   handleEvents(events: SimEvent[]): void;
   getSelection(): ReadonlySet<UnitId>;
   getDragRect(): DragRect | null;
+  getLanePreview(): Vec2[] | null;
   destroy(): void;
 }
 
@@ -39,6 +41,9 @@ function fmtSeconds(ticks: number): string {
 
 /** Slack added around a box-select rect so a plain click still hits a unit. */
 const CLICK_TOLERANCE = 6;
+
+/** Minimum distance between sampled points on a hand-drawn lane. */
+const MIN_WAYPOINT_SPACING = 24;
 
 export function createUi(app: Application, sim: Simulation, clock: Clock, platform: Platform): UiHandle {
   const root = document.createElement('div');
@@ -64,7 +69,7 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     'position:absolute;bottom:12px;left:12px;background:#00000066;' +
     'padding:6px 10px;border-radius:6px;font-size:12px;opacity:0.8;';
   hint.textContent =
-    'drag: select · right-click: move · R: release · shift+drag: redraw lane · ' +
+    'drag: select · right-click: move · R: release · shift+drag: draw lane · ' +
     'space: pause · 1/2/3: speed · S: save · L: load';
   root.appendChild(hint);
 
@@ -108,6 +113,7 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
   let dragStart: { x: number; y: number } | null = null;
   let dragCurrent: { x: number; y: number } | null = null;
   let dragIsLaneRedraw = false;
+  let lanePath: Vec2[] = [];
 
   const onContextMenu = (ev: MouseEvent): void => ev.preventDefault();
 
@@ -116,6 +122,7 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
       dragStart = worldPoint(ev);
       dragCurrent = dragStart;
       dragIsLaneRedraw = ev.shiftKey;
+      lanePath = dragIsLaneRedraw ? [dragStart] : [];
     } else if (ev.button === 2) {
       if (selected.size === 0) return;
       const dest = worldPoint(ev);
@@ -126,7 +133,17 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
   };
 
   const onPointerMove = (ev: PointerEvent): void => {
-    if (dragStart) dragCurrent = worldPoint(ev);
+    if (!dragStart) return;
+    dragCurrent = worldPoint(ev);
+
+    if (dragIsLaneRedraw) {
+      const last = lanePath[lanePath.length - 1];
+      const dx = dragCurrent.x - last.x;
+      const dy = dragCurrent.y - last.y;
+      if (dx * dx + dy * dy >= MIN_WAYPOINT_SPACING * MIN_WAYPOINT_SPACING) {
+        lanePath.push(dragCurrent);
+      }
+    }
   };
 
   const onPointerUp = (ev: PointerEvent): void => {
@@ -137,8 +154,15 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     dragCurrent = null;
 
     if (dragIsLaneRedraw) {
-      const lane = sim.state.lanes.find((l) => l.owner === 'player');
-      if (lane) sim.issue({ type: 'RedrawLane', laneId: lane.id, path: [from, to] });
+      const path = lanePath;
+      lanePath = [];
+      const last = path[path.length - 1];
+      if (last.x !== to.x || last.y !== to.y) path.push(to);
+
+      if (path.length >= 2) {
+        const lane = sim.state.lanes.find((l) => l.owner === 'player');
+        if (lane) sim.issue({ type: 'RedrawLane', laneId: lane.id, path });
+      }
     } else {
       selected = unitsInRect(sim.state, from, to);
     }
@@ -219,6 +243,11 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     getDragRect(): DragRect | null {
       if (!dragStart || !dragCurrent || dragIsLaneRedraw) return null;
       return { x0: dragStart.x, y0: dragStart.y, x1: dragCurrent.x, y1: dragCurrent.y };
+    },
+
+    getLanePreview(): Vec2[] | null {
+      if (!dragIsLaneRedraw || lanePath.length === 0) return null;
+      return dragCurrent ? [...lanePath, dragCurrent] : lanePath;
     },
 
     destroy(): void {

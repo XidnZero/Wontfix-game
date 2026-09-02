@@ -34,6 +34,7 @@ export interface Renderer {
     alpha: number,
     selected: ReadonlySet<UnitId>,
     dragRect: DragRect | null,
+    lanePreview: Vec2[] | null,
   ): void;
   destroy(): void;
 }
@@ -94,6 +95,7 @@ export function createRenderer(app: Application): Renderer {
       alpha: number,
       selected: ReadonlySet<UnitId>,
       dragRect: DragRect | null,
+      lanePreview: Vec2[] | null,
     ): void {
       if (state.tick !== lastTick) {
         prevPos = currPos;
@@ -139,6 +141,16 @@ export function createRenderer(app: Application): Renderer {
         overlay.rect(x, y, w, h);
         overlay.fill({ color: 0xffd23f, alpha: 0.08 });
         overlay.stroke({ width: 1, color: 0xffd23f, alpha: 0.6 });
+      }
+
+      if (lanePreview && lanePreview.length >= 2) {
+        overlay.moveTo(lanePreview[0].x, lanePreview[0].y);
+        for (let i = 1; i < lanePreview.length; i++) overlay.lineTo(lanePreview[i].x, lanePreview[i].y);
+        overlay.stroke({ width: 2, color: 0xffd23f, alpha: 0.8 });
+        for (const p of lanePreview) {
+          overlay.circle(p.x, p.y, 2.5);
+          overlay.fill({ color: 0xffd23f, alpha: 0.8 });
+        }
       }
     },
 
