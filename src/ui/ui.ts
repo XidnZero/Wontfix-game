@@ -8,7 +8,9 @@
  * IssueMove), 'R' releases the selection back to lane control. Shift+drag
  * redraws the player's one starting lane as a straight line — a stand-in for
  * proper multi-waypoint lane drawing, good enough to test capture feel by
- * hand.
+ * hand. 'S'/'L' save/load through the platform boundary — the payoff for
+ * MissionState being plain serializable data (README rule 2): a snapshot is
+ * just `JSON.stringify`, and loading one back is just replacing the field.
  */
 
 import type { Application } from 'pixi.js';
@@ -18,6 +20,9 @@ import type { Simulation } from '../sim/sim';
 import type { SimEvent } from '../sim/io';
 import type { MissionState, UnitId } from '../sim/types';
 import type { DragRect } from '../render/render';
+import type { Platform } from '../platform/platform';
+
+const QUICKSAVE_SLOT = 'quicksave';
 
 export interface UiHandle {
   update(state: MissionState): void;
@@ -35,7 +40,7 @@ function fmtSeconds(ticks: number): string {
 /** Slack added around a box-select rect so a plain click still hits a unit. */
 const CLICK_TOLERANCE = 6;
 
-export function createUi(app: Application, sim: Simulation, clock: Clock): UiHandle {
+export function createUi(app: Application, sim: Simulation, clock: Clock, platform: Platform): UiHandle {
   const root = document.createElement('div');
   root.style.cssText =
     'position:fixed;inset:0;pointer-events:none;color:#e6e8eb;' +
@@ -59,8 +64,25 @@ export function createUi(app: Application, sim: Simulation, clock: Clock): UiHan
     'position:absolute;bottom:12px;left:12px;background:#00000066;' +
     'padding:6px 10px;border-radius:6px;font-size:12px;opacity:0.8;';
   hint.textContent =
-    'drag: select · right-click: move · R: release · shift+drag: redraw lane · space: pause · 1/2/3: speed';
+    'drag: select · right-click: move · R: release · shift+drag: redraw lane · ' +
+    'space: pause · 1/2/3: speed · S: save · L: load';
   root.appendChild(hint);
+
+  const toast = document.createElement('div');
+  toast.style.cssText =
+    'position:absolute;top:12px;right:12px;background:#00000066;' +
+    'padding:6px 10px;border-radius:6px;font-size:12px;opacity:0;transition:opacity 0.3s;';
+  root.appendChild(toast);
+
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  function showToast(text: string): void {
+    toast.textContent = text;
+    toast.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.style.opacity = '0';
+    }, 2000);
+  }
 
   const canvas = app.canvas;
   canvas.style.pointerEvents = 'auto';
@@ -131,6 +153,24 @@ export function createUi(app: Application, sim: Simulation, clock: Clock): UiHan
     else if (ev.code === 'Digit3') clock.speed = 3;
     else if (ev.code === 'KeyR' && selected.size > 0) {
       sim.issue({ type: 'ReleaseUnits', unitIds: [...selected] });
+    } else if (ev.code === 'KeyS') {
+      platform
+        .save(QUICKSAVE_SLOT, sim.snapshot())
+        .then(() => showToast('Saved'))
+        .catch(() => showToast('Save failed'));
+    } else if (ev.code === 'KeyL') {
+      platform
+        .load(QUICKSAVE_SLOT)
+        .then((json) => {
+          if (!json) {
+            showToast('No save found');
+            return;
+          }
+          sim.state = JSON.parse(json) as MissionState;
+          selected = new Set();
+          showToast('Loaded');
+        })
+        .catch(() => showToast('Load failed'));
     }
   };
 

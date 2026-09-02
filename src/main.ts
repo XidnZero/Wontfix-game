@@ -4,6 +4,7 @@ import { createVerticalSliceMission } from './sim/mission';
 import { Simulation } from './sim/sim';
 import { createRenderer } from './render/render';
 import { createUi, type UiHandle } from './ui/ui';
+import { BrowserPlatform } from './platform/platform';
 
 async function main(): Promise<void> {
   const mount = document.getElementById('app');
@@ -13,6 +14,7 @@ async function main(): Promise<void> {
   await app.init({ resizeTo: window, background: 0x0b0d10, antialias: true });
   mount.appendChild(app.canvas);
 
+  const platform = new BrowserPlatform();
   const sim = new Simulation(createVerticalSliceMission(Date.now() >>> 0));
   const renderer = createRenderer(app);
 
@@ -29,7 +31,7 @@ async function main(): Promise<void> {
       ui.update(sim.state);
     },
   );
-  ui = createUi(app, sim, clock);
+  ui = createUi(app, sim, clock, platform);
 
   clock.start();
 }
