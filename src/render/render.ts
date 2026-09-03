@@ -7,9 +7,9 @@
  * whatever the display's refresh rate is (see app/clock.ts).
  */
 
-import { Container, Graphics, type Application } from 'pixi.js';
+import { Container, Graphics, Text, type Application } from 'pixi.js';
 import * as C from '../sim/config';
-import type { MissionState, Owner, UnitId, Vec2 } from '../sim/types';
+import type { FactoryId, MissionState, Owner, UnitId, Vec2 } from '../sim/types';
 
 const OWNER_COLOR: Record<Owner, number> = {
   player: 0x4fd1ff,
@@ -42,14 +42,16 @@ export interface Renderer {
 export function createRenderer(app: Application): Renderer {
   const world = new Container();
   const furniture = new Graphics();
+  const labels = new Container();
   const units = new Graphics();
   const overlay = new Graphics();
-  world.addChild(furniture, units, overlay);
+  world.addChild(furniture, labels, units, overlay);
   app.stage.addChild(world);
 
   let lastTick = -1;
   let prevPos = new Map<UnitId, Vec2>();
   let currPos = new Map<UnitId, Vec2>();
+  const factoryLabels = new Map<FactoryId, Text>();
 
   function drawFurniture(state: MissionState): void {
     furniture.clear();
@@ -71,6 +73,16 @@ export function createRenderer(app: Application): Renderer {
       furniture.rect(factory.pos.x - 16, factory.pos.y - 16, 32, 32);
       furniture.fill({ color, alpha: 0.25 });
       furniture.stroke({ width: 2, color });
+
+      let label = factoryLabels.get(factory.id);
+      if (!label) {
+        label = new Text({ style: { fontSize: 10, fill: 0xe6e8eb, fontFamily: 'monospace' } });
+        label.anchor.set(0.5, 0);
+        factoryLabels.set(factory.id, label);
+        labels.addChild(label);
+      }
+      label.text = factory.producing;
+      label.position.set(factory.pos.x, factory.pos.y + 20);
     }
 
     for (const zone of state.zones) {

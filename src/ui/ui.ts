@@ -5,13 +5,15 @@
  *
  * Controls, RTS-standard: left-drag box-selects player units, right-click
  * grabs the selection and sends it to the click point (Tier 2: GrabUnits +
- * IssueMove), 'R' releases the selection back to lane control. Shift+drag
- * redraws the player's one starting lane, sampling points along the actual
- * drag path (not just start/end) so it's a real multi-waypoint lane, not a
- * single straight segment. 'S'/'L' save/load through the platform boundary —
- * the payoff for MissionState being plain serializable data (README rule 2):
- * a snapshot is just `JSON.stringify`, and loading one back is just
- * replacing the field.
+ * IssueMove), 'R' releases the selection back to lane control. A plain click
+ * (no drag) on a friendly factory cycles its production through the four
+ * player chassis — the only way SetFactoryProduction ever gets issued.
+ * Shift+drag redraws the player's one starting lane, sampling points along
+ * the actual drag path (not just start/end) so it's a real multi-waypoint
+ * lane, not a single straight segment. 'S'/'L' save/load through the
+ * platform boundary — the payoff for MissionState being plain serializable
+ * data (README rule 2): a snapshot is just `JSON.stringify`, and loading one
+ * back is just replacing the field.
  */
 
 import type { Application } from 'pixi.js';
@@ -19,11 +21,17 @@ import * as C from '../sim/config';
 import type { Clock } from '../app/clock';
 import type { Simulation } from '../sim/sim';
 import type { SimEvent } from '../sim/io';
-import type { MissionState, UnitId, Vec2 } from '../sim/types';
+import type { MissionState, PlayerChassis, UnitId, Vec2 } from '../sim/types';
 import type { DragRect } from '../render/render';
 import type { Platform } from '../platform/platform';
 
 const QUICKSAVE_SLOT = 'quicksave';
+
+/** Order factories cycle through on click. */
+const FACTORY_CHASSIS_ORDER: readonly PlayerChassis[] = ['scout', 'tank', 'jammer', 'repair'];
+
+/** Half-extent of a factory's clickable footprint — matches its render size. */
+const FACTORY_HIT_RADIUS = 16;
 
 export interface UiHandle {
   update(state: MissionState): void;
@@ -69,8 +77,8 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     'position:absolute;bottom:12px;left:12px;background:#00000066;' +
     'padding:6px 10px;border-radius:6px;font-size:12px;opacity:0.8;';
   hint.textContent =
-    'drag: select · right-click: move · R: release · shift+drag: draw lane · ' +
-    'space: pause · 1/2/3: speed · S: save · L: load';
+    'drag: select · right-click: move · R: release · click factory: cycle production · ' +
+    'shift+drag: draw lane · space: pause · 1/2/3: speed · S: save · L: load';
   root.appendChild(hint);
 
   const toast = document.createElement('div');
@@ -107,6 +115,15 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
       .filter((u) => u.owner === 'player' && u.pos.x >= minX && u.pos.x <= maxX && u.pos.y >= minY && u.pos.y <= maxY)
       .map((u) => u.id);
     return new Set(ids);
+  }
+
+  function friendlyFactoryAt(state: MissionState, p: { x: number; y: number }) {
+    return state.factories.find(
+      (f) =>
+        f.owner === 'player' &&
+        Math.abs(p.x - f.pos.x) <= FACTORY_HIT_RADIUS &&
+        Math.abs(p.y - f.pos.y) <= FACTORY_HIT_RADIUS,
+    );
   }
 
   let selected = new Set<UnitId>();
@@ -163,6 +180,19 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
         const lane = sim.state.lanes.find((l) => l.owner === 'player');
         if (lane) sim.issue({ type: 'RedrawLane', laneId: lane.id, path });
       }
+      return;
+    }
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const wasClick = dx * dx + dy * dy <= CLICK_TOLERANCE * CLICK_TOLERANCE;
+    const factory = wasClick ? friendlyFactoryAt(sim.state, to) : undefined;
+
+    if (factory) {
+      const order = FACTORY_CHASSIS_ORDER;
+      const next = order[(order.indexOf(factory.producing as PlayerChassis) + 1) % order.length];
+      sim.issue({ type: 'SetFactoryProduction', factoryId: factory.id, chassis: next });
+      showToast(`Factory -> ${next}`);
     } else {
       selected = unitsInRect(sim.state, from, to);
     }
