@@ -47,6 +47,14 @@ export const DROP_INTERVAL_MIN_TICKS = secs(14);
 export const SQUADS_PER_DROP_MIN = 2;
 export const SQUADS_PER_DROP_MAX = 3;
 
+/**
+ * The opening's dead air before anything is on the board is its own problem,
+ * separate from steady-state cadence — the first drop lands this long after
+ * mission start regardless of DROP_INTERVAL_BASE_TICKS. Every drop after it
+ * still follows the normal territory-scaled interval.
+ */
+export const DROP_FIRST_DELAY_TICKS = secs(5);
+
 /** Ticks between a dropship appearing on approach and touching down. */
 export const DROPSHIP_APPROACH_TICKS = secs(4);
 
@@ -68,7 +76,7 @@ export const REINFORCE_RADIUS = 100;
 // ---------------------------------------------------------------------------
 
 /** Parked vehicles before a factory idles. Prevents a junkyard. */
-export const PARKING_CAP = 3;
+export const PARKING_CAP = 1;
 
 /** Per-chassis build time, in ticks. */
 export const BUILD_TICKS: Record<string, number> = {

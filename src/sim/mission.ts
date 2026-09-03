@@ -81,7 +81,10 @@ export function createVerticalSliceMission(seed: number): MissionState {
     owner: 'player',
     zonesHeld: 0,
     dropIntervalTicks: C.DROP_INTERVAL_BASE_TICKS,
-    dropTimer: 0,
+    // Pre-loaded so the first drop lands DROP_FIRST_DELAY_TICKS after mission
+    // start rather than waiting out a full DROP_INTERVAL_BASE_TICKS with
+    // nothing on the board — see the constant's doc comment.
+    dropTimer: Math.max(0, C.DROP_INTERVAL_BASE_TICKS - C.DROP_FIRST_DELAY_TICKS),
     lossClockArmed: false,
     lossClockTicks: 0,
     lossClockWarned: false,
