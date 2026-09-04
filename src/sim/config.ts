@@ -78,6 +78,14 @@ export const REINFORCE_RADIUS = 100;
 /** Parked vehicles before a factory idles. Prevents a junkyard. */
 export const PARKING_CAP = 1;
 
+/**
+ * A parked (uncrewed) vehicle spawns this far above its factory's center
+ * instead of exactly on top of it — spawning at the factory's own position
+ * reads as the vehicle not existing, since it's fully hidden behind the
+ * factory's render footprint.
+ */
+export const PARKING_OFFSET_Y = -34;
+
 /** Per-chassis build time, in ticks. */
 export const BUILD_TICKS: Record<string, number> = {
   scout: secs(10),

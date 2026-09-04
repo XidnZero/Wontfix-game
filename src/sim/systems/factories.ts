@@ -34,6 +34,12 @@ export function stepFactories(ctx: TickContext): void {
 
     const id = asId<UnitId>(ctx.state.nextId++);
     const maxHp = maxHpFor(factory.producing, 0);
+    // A player vehicle sits parked (visibly, off to the side) until a squad
+    // mounts it; an AI vehicle rolls straight out, so it can start exactly
+    // on the factory without ever reading as "hidden inside it".
+    const spawnPos = isPlayer
+      ? { x: factory.pos.x, y: factory.pos.y + C.PARKING_OFFSET_Y }
+      : { ...factory.pos };
     ctx.state.units.push({
       id,
       owner: factory.owner,
@@ -42,7 +48,7 @@ export function stepFactories(ctx: TickContext): void {
       firmware: factory.owner,
       firmwareWipeProgress: 0,
       reclaimExposure: 0,
-      pos: { ...factory.pos },
+      pos: spawnPos,
       vel: { x: 0, y: 0 },
       hp: maxHp,
       maxHp,
