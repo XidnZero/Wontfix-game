@@ -113,6 +113,95 @@ describe('squad reinforcement', () => {
   });
 });
 
+describe('mounting', () => {
+  function makeFootSquad(state: ReturnType<typeof createVerticalSliceMission>, pos: { x: number; y: number }) {
+    const squadId = asId<SquadId>(state.nextId++);
+    const unitId = asId<UnitId>(state.nextId++);
+    const maxHp = C.SQUAD_SIZE * C.FOOT_HP_PER_BODY;
+    const lane = state.lanes.find((l) => l.owner === 'player')!;
+
+    state.squads.push({ id: squadId, callsign: 'T', kind: 'rifle', bodies: C.SQUAD_SIZE, veterancy: 0, unitId });
+    state.units.push({
+      id: unitId,
+      owner: 'player',
+      chassis: null,
+      squadId,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos,
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: lane.id,
+      laneRevision: lane.revision,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+    return { squadId, unitId };
+  }
+
+  it('only lets one of two simultaneously-arriving squads claim a single parked vehicle', () => {
+    const state = createVerticalSliceMission(3);
+    const factory = state.factories.find((f) => f.owner === 'player')!;
+
+    const vehicleId = asId<UnitId>(state.nextId++);
+    const maxHp = C.CHASSIS_HP.tank;
+    state.units.push({
+      id: vehicleId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...factory.pos },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: null,
+      laneRevision: 0,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+    factory.parked.push(vehicleId);
+
+    // Two squads, both already within MOUNT_RADIUS of the factory on the
+    // same tick — the exact scenario that let both claim the one vehicle.
+    const s1 = makeFootSquad(state, { x: factory.pos.x - 5, y: factory.pos.y });
+    const s2 = makeFootSquad(state, { x: factory.pos.x + 5, y: factory.pos.y });
+
+    const sim = new Simulation(state);
+    sim.advance();
+
+    const mountingCount = [s1, s2].filter(
+      (s) => sim.state.units.find((u) => u.id === s.unitId)?.state === 'mounting',
+    ).length;
+    expect(mountingCount).toBe(1); // not both — that was the bug
+
+    for (let i = 0; i <= C.MOUNT_TICKS + 1; i++) sim.advance();
+
+    const survivedAsFoot = [s1, s2].filter((s) => sim.state.units.some((u) => u.id === s.unitId)).length;
+    expect(survivedAsFoot).toBe(1); // the loser goes back to walking, not vanished
+
+    const crewedVehicle = sim.state.units.find((u) => u.id === vehicleId)!;
+    expect(crewedVehicle.squadId).not.toBeNull();
+
+    const otherSquadId = crewedVehicle.squadId === s1.squadId ? s2.squadId : s1.squadId;
+    const otherSquad = sim.state.squads.find((s) => s.id === otherSquadId);
+    expect(otherSquad).toBeDefined();
+    expect(otherSquad!.unitId).not.toBe(vehicleId);
+  });
+});
+
 describe('pure helpers', () => {
   it('dropIntervalFor tapers past the diminishing-returns threshold', () => {
     const atThreshold = dropIntervalFor(6, 10); // 60%

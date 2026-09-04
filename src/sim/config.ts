@@ -45,7 +45,7 @@ export const DIMINISHING_RETURNS_FACTOR = 0.35;
 export const DROP_INTERVAL_BASE_TICKS = secs(40);
 export const DROP_INTERVAL_MIN_TICKS = secs(14);
 export const SQUADS_PER_DROP_MIN = 2;
-export const SQUADS_PER_DROP_MAX = 3;
+export const SQUADS_PER_DROP_MAX = 2;
 
 /**
  * The opening's dead air before anything is on the board is its own problem,

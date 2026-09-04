@@ -12,16 +12,18 @@ import type { TickContext } from '../sim';
 import type { Factory, Unit } from '../types';
 
 /**
- * Index of the first parked vehicle actually available to crew. A vehicle
- * the player has grabbed (`detached`) is still sitting in `parked` — it just
- * isn't up for auto-crewing anymore, so a manual move order on it can't be
- * silently overwritten by the next squad through the factory.
+ * A vehicle the player has grabbed (`detached`) is still sitting in
+ * `parked` — it just isn't up for auto-crewing anymore, so a manual move
+ * order on it can't be silently overwritten by the next squad through the
+ * factory.
  */
+function isAvailable(ctx: TickContext, vehicleId: Factory['parked'][number]): boolean {
+  const v = ctx.state.units.find((u) => u.id === vehicleId);
+  return v !== undefined && !v.detached;
+}
+
 function availableParkedIndex(ctx: TickContext, factory: Factory): number {
-  return factory.parked.findIndex((id) => {
-    const v = ctx.state.units.find((u) => u.id === id);
-    return v !== undefined && !v.detached;
-  });
+  return factory.parked.findIndex((id) => isAvailable(ctx, id));
 }
 
 function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void {
@@ -71,6 +73,14 @@ export function stepMounting(ctx: TickContext): void {
       (u) => u.chassis === null && u.squadId !== null && u.laneId === lane.id,
     );
 
+    // How many parked vehicles are still unclaimed this tick. Checking
+    // availability per-candidate without this would let two squads that
+    // arrive on the same tick both see the one parked vehicle as free and
+    // both start mounting it — only one can actually finish, but the other
+    // wastes MOUNT_TICKS frozen for nothing, which reads as the vehicle
+    // having taken two squads.
+    let unclaimedSlots = factory.parked.filter((id) => isAvailable(ctx, id)).length;
+
     for (const unit of candidates) {
       if (unit.state === 'mounting') {
         unit.stateTimer--;
@@ -78,13 +88,14 @@ export function stepMounting(ctx: TickContext): void {
         continue;
       }
 
-      if (availableParkedIndex(ctx, factory) < 0) continue;
+      if (unclaimedSlots <= 0) continue;
       const dx = unit.pos.x - factory.pos.x;
       const dy = unit.pos.y - factory.pos.y;
       if (dx * dx + dy * dy > C.MOUNT_RADIUS * C.MOUNT_RADIUS) continue;
 
       unit.state = 'mounting';
       unit.stateTimer = C.MOUNT_TICKS;
+      unclaimedSlots--;
     }
   }
 }
