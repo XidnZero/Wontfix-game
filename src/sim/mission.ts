@@ -51,9 +51,9 @@ export function createVerticalSliceMission(seed: number): MissionState {
   ];
 
   const zones: Zone[] = [
-    { id: zoneWestId, center: { x: 320, y: 300 }, radius: 60, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
-    { id: zoneCenterId, center: { x: 500, y: 300 }, radius: 70, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
-    { id: zoneEastId, center: { x: 680, y: 300 }, radius: 60, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
+    { id: zoneWestId, center: { x: 320, y: 300 }, radius: 45, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
+    { id: zoneCenterId, center: { x: 500, y: 300 }, radius: 53, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
+    { id: zoneEastId, center: { x: 680, y: 300 }, radius: 45, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
   ];
 
   const lanes: Lane[] = [

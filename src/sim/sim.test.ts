@@ -202,6 +202,48 @@ describe('mounting', () => {
   });
 });
 
+describe('movement holds at uncaptured zones', () => {
+  it('halts a unit standing in an unowned zone, then releases it once captured', () => {
+    const state = createVerticalSliceMission(5);
+    const zone = state.zones[0]; // zoneWest: neutral, only on the player's lane
+    const lane = state.lanes.find((l) => l.owner === 'player')!;
+
+    const unitId = asId<UnitId>(state.nextId++);
+    const maxHp = C.CHASSIS_HP.tank;
+    state.units.push({
+      id: unitId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...zone.center },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: lane.id,
+      laneRevision: lane.revision,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    const sim = new Simulation(state);
+
+    for (let i = 0; i < C.CAPTURE_TICKS - 5; i++) sim.advance();
+    expect(sim.state.units.find((u) => u.id === unitId)!.pos).toEqual(zone.center);
+    expect(sim.state.zones.find((z) => z.id === zone.id)!.owner).not.toBe('player');
+
+    for (let i = 0; i < 40; i++) sim.advance();
+    expect(sim.state.zones.find((z) => z.id === zone.id)!.owner).toBe('player');
+    expect(sim.state.units.find((u) => u.id === unitId)!.pos.x).toBeGreaterThan(zone.center.x);
+  });
+});
+
 describe('pure helpers', () => {
   it('dropIntervalFor tapers past the diminishing-returns threshold', () => {
     const atThreshold = dropIntervalFor(6, 10); // 60%

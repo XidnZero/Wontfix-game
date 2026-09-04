@@ -84,9 +84,32 @@ function destinationFor(ctx: TickContext, unit: Unit): Vec2 | null {
   return nextWaypoint(lane.path, unit.pos);
 }
 
+/**
+ * A unit standing inside a zone someone else owns (or nobody does yet)
+ * holds there instead of walking through it — capturing the point takes
+ * priority over reaching whatever's next on the lane. Recomputed fresh every
+ * tick from position rather than a stored flag, so it self-corrects the
+ * instant capture.ts flips the zone: no event to consume, nothing to reset.
+ */
+function inUnownedZone(ctx: TickContext, unit: Unit): boolean {
+  if (unit.owner === 'neutral') return false;
+  for (const zone of ctx.state.zones) {
+    if (zone.owner === unit.owner) continue;
+    const dx = zone.center.x - unit.pos.x;
+    const dy = zone.center.y - unit.pos.y;
+    if (dx * dx + dy * dy <= zone.radius * zone.radius) return true;
+  }
+  return false;
+}
+
 export function stepMovement(ctx: TickContext): void {
   for (const unit of ctx.state.units) {
     if (unit.state === 'engaging' || unit.state === 'mounting' || unit.state === 'rebooting') {
+      unit.vel = { x: 0, y: 0 };
+      continue;
+    }
+
+    if (inUnownedZone(ctx, unit)) {
       unit.vel = { x: 0, y: 0 };
       continue;
     }
