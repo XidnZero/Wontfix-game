@@ -14,8 +14,8 @@ export function findSquad(state: MissionState, unit: Unit): Squad | null {
 }
 
 export function unitSpeed(state: MissionState, unit: Unit): number {
-  if (unit.chassis !== null) return C.CHASSIS_SPEED[unit.chassis] ?? C.FOOT_SPEED;
-  return C.FOOT_SPEED;
+  const base = unit.chassis !== null ? (C.CHASSIS_SPEED[unit.chassis] ?? C.FOOT_SPEED) : C.FOOT_SPEED;
+  return base * C.GLOBAL_SPEED_MULTIPLIER;
 }
 
 export function unitRange(state: MissionState, unit: Unit): number {
@@ -30,10 +30,14 @@ export function unitRange(state: MissionState, unit: Unit): number {
  * here once reboot/reclaim/firmware-wipe are implemented.
  */
 export function unitDamage(state: MissionState, unit: Unit): number {
-  if (unit.chassis !== null) return C.CHASSIS_DAMAGE[unit.chassis] ?? 0;
-  const squad = findSquad(state, unit);
-  if (!squad) return 0;
-  return C.FOOT_DAMAGE_PER_BODY[squad.kind] * squad.bodies;
+  let base: number;
+  if (unit.chassis !== null) {
+    base = C.CHASSIS_DAMAGE[unit.chassis] ?? 0;
+  } else {
+    const squad = findSquad(state, unit);
+    base = squad ? C.FOOT_DAMAGE_PER_BODY[squad.kind] * squad.bodies : 0;
+  }
+  return unit.owner === 'ai' ? base * C.AI_DAMAGE_MULTIPLIER : base;
 }
 
 export function maxHpFor(chassis: Unit['chassis'], bodies: number): number {

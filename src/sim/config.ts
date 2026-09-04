@@ -208,6 +208,13 @@ export const WAYPOINT_ARRIVAL_RADIUS = 12;
 export const SEPARATION_RADIUS = 18;
 export const SEPARATION_FORCE = 30;
 
+/**
+ * Playtest feedback knob: scales every unit's speed (unitSpeed reads
+ * FOOT_SPEED/CHASSIS_SPEED through this), so tuning overall pace doesn't
+ * mean hand-editing every entry in the speed tables above.
+ */
+export const GLOBAL_SPEED_MULTIPLIER = 0.8;
+
 // ---------------------------------------------------------------------------
 // Combat — same placeholder caveat as movement.
 // ---------------------------------------------------------------------------
@@ -245,6 +252,14 @@ export const CHASSIS_DAMAGE: Record<string, number> = {
   airgapped: 12,
   assembler: 0,
 };
+
+/**
+ * Playtest feedback knob: "the enemy feels strong." Applied to every
+ * AI-owned unit's damage in unitDamage (chassis or foot squad, whichever
+ * they're fielding), not baked into CHASSIS_DAMAGE, so it stays a single
+ * adjustable dial rather than a hand-edit across every AI chassis entry.
+ */
+export const AI_DAMAGE_MULTIPLIER = 0.9;
 
 export const FOOT_RANGE = 70;
 

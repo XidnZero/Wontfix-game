@@ -5,6 +5,7 @@ import { Simulation, dropIntervalFor, rolledBackVersion } from './sim';
 import { runHeadless } from '../app/clock';
 import { asId, AiVersion } from './types';
 import type { Squad, SquadId, Unit, UnitId } from './types';
+import { unitDamage, unitSpeed } from './systems/unitStats';
 import * as C from './config';
 
 describe('vertical slice mission', () => {
@@ -241,6 +242,48 @@ describe('movement holds at uncaptured zones', () => {
     for (let i = 0; i < 40; i++) sim.advance();
     expect(sim.state.zones.find((z) => z.id === zone.id)!.owner).toBe('player');
     expect(sim.state.units.find((u) => u.id === unitId)!.pos.x).toBeGreaterThan(zone.center.x);
+  });
+});
+
+describe('balance multipliers', () => {
+  function makeTank(owner: 'player' | 'ai'): Unit {
+    const maxHp = C.CHASSIS_HP.tank;
+    return {
+      id: asId<UnitId>(999),
+      owner,
+      chassis: 'tank',
+      squadId: null,
+      firmware: owner,
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { x: 0, y: 0 },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: null,
+      laneRevision: 0,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    };
+  }
+
+  it('applies AI_DAMAGE_MULTIPLIER only to AI-owned units', () => {
+    const state = createVerticalSliceMission(1);
+    const playerDamage = unitDamage(state, makeTank('player'));
+    const aiDamage = unitDamage(state, makeTank('ai'));
+
+    expect(playerDamage).toBe(C.CHASSIS_DAMAGE.tank);
+    expect(aiDamage).toBeCloseTo(C.CHASSIS_DAMAGE.tank * C.AI_DAMAGE_MULTIPLIER, 6);
+  });
+
+  it('applies GLOBAL_SPEED_MULTIPLIER to every unit regardless of side', () => {
+    const state = createVerticalSliceMission(1);
+    expect(unitSpeed(state, makeTank('player'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
+    expect(unitSpeed(state, makeTank('ai'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
   });
 });
 
