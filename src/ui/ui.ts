@@ -67,6 +67,13 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     'padding:8px 12px;border-radius:6px;white-space:nowrap;';
   root.appendChild(hud);
 
+  // Built once and updated by textContent rather than rebuilding hud's
+  // innerHTML every frame.
+  const hudClock = document.createElement('div');
+  const hudTerritory = document.createElement('div');
+  const hudActions = document.createElement('div');
+  hud.append(hudClock, hudTerritory, hudActions);
+
   const banner = document.createElement('div');
   banner.style.cssText =
     'position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);' +
@@ -141,6 +148,10 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
       dragCurrent = dragStart;
       dragIsLaneRedraw = ev.shiftKey;
       lanePath = dragIsLaneRedraw ? [dragStart] : [];
+      // Without this, releasing outside the canvas (or over another window)
+      // never fires pointerup on it, leaving dragStart set and the selection
+      // box or lane preview stuck on screen.
+      canvas.setPointerCapture(ev.pointerId);
     } else if (ev.button === 2) {
       if (selected.size === 0) return;
       const dest = worldPoint(ev);
@@ -167,7 +178,9 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
   };
 
   const onPointerUp = (ev: PointerEvent): void => {
-    if (ev.button !== 0 || !dragStart) return;
+    if (ev.button !== 0) return;
+    if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+    if (!dragStart) return;
     const from = dragStart;
     const to = worldPoint(ev);
     dragStart = null;
@@ -201,7 +214,23 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
     }
   };
 
+  const onPointerCancel = (ev: PointerEvent): void => {
+    // The platform can cancel a pointer sequence outright (a system gesture,
+    // window losing focus mid-drag) with no pointerup at all — without this,
+    // dragStart stays set and the selection box / lane preview is stuck on
+    // screen until the next successful drag.
+    if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+    dragStart = null;
+    dragCurrent = null;
+    lanePath = [];
+  };
+
   const onKeyDown = (ev: KeyboardEvent): void => {
+    // Otherwise Ctrl+S/Cmd+S fires the quicksave AND the browser's own save
+    // dialog (same idea for Ctrl+L in some browsers) — none of these
+    // single-key shortcuts are meant to combine with a modifier anyway.
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
     if (ev.code === 'Space') {
       clock.speed = clock.speed === 0 ? 1 : 0;
       ev.preventDefault();
@@ -237,6 +266,7 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointercancel', onPointerCancel);
   window.addEventListener('keydown', onKeyDown);
 
   return {
@@ -255,15 +285,16 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
           ? ` · loss clock ${fmtSeconds(C.LOSS_CLOCK_TICKS - state.player.lossClockTicks)}`
           : '';
 
-      hud.innerHTML =
-        `<div>${fmtSeconds(state.tick)} · tick ${state.tick} · speed ${clock.speed}x</div>` +
-        `<div>zones ${state.player.zonesHeld}/${zonesTotal} · next drop ${dropEta}${lossWarning}</div>` +
-        `<div>actions ${state.playerActionCount} / floor ${C.ACTION_FLOOR_PER_MISSION} · selected ${selected.size}</div>`;
+      hudClock.textContent = `${fmtSeconds(state.tick)} · tick ${state.tick} · speed ${clock.speed}x`;
+      hudTerritory.textContent = `zones ${state.player.zonesHeld}/${zonesTotal} · next drop ${dropEta}${lossWarning}`;
+      hudActions.textContent = `actions ${state.playerActionCount} / floor ${C.ACTION_FLOOR_PER_MISSION} · selected ${selected.size}`;
 
       if (state.phase === 'won' || state.phase === 'lost') {
         banner.style.display = 'block';
         banner.style.color = state.phase === 'won' ? '#4fd1ff' : '#ff5c5c';
         banner.textContent = state.phase === 'won' ? 'MISSION COMPLETE' : 'MISSION FAILED';
+      } else {
+        banner.style.display = 'none';
       }
     },
 
@@ -290,6 +321,7 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('keydown', onKeyDown);
       root.remove();
     },

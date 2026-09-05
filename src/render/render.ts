@@ -90,13 +90,18 @@ export function createRenderer(app: Application): Renderer {
       furniture.circle(zone.center.x, zone.center.y, zone.radius);
       furniture.stroke({ width: 2, color: ringColor, alpha: 0.85 });
 
-      if (zone.contender !== null) {
+      // captureProgress > 0, not contender !== null: a contested zone freezes
+      // progress by nulling contender (capture.ts), so gating on contender
+      // made frozen progress during a contest invisible — reading as lost
+      // rather than held.
+      if (zone.captureProgress > 0) {
         const frac = Math.min(1, zone.captureProgress / C.CAPTURE_TICKS);
         const barY = zone.center.y + zone.radius + 6;
+        const barColor = zone.contested ? 0xffd23f : OWNER_COLOR[zone.contender ?? zone.owner];
         furniture.rect(zone.center.x - zone.radius, barY, zone.radius * 2, 4);
         furniture.fill({ color: 0x2a2f36 });
         furniture.rect(zone.center.x - zone.radius, barY, zone.radius * 2 * frac, 4);
-        furniture.fill({ color: OWNER_COLOR[zone.contender] });
+        furniture.fill({ color: barColor });
       }
     }
   }
