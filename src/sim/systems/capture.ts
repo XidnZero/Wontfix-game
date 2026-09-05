@@ -31,11 +31,16 @@ function contenderAt(ctx: TickContext, zone: Zone): { contender: Owner | null; c
 
 export function stepCapture(ctx: TickContext): void {
   for (const zone of ctx.state.zones) {
+    // Captured before `contested` is overwritten below: `zone.contender` is
+    // nulled the instant a contest starts (two lines down), so it can't be
+    // used as the edge detector — that combination used to fire ZoneContested
+    // every tick of a contest instead of once at the start.
+    const wasContested = zone.contested;
     const { contender, contested } = contenderAt(ctx, zone);
     zone.contested = contested;
 
     if (contested) {
-      if (!zone.contender) ctx.events.push({ type: 'ZoneContested', zoneId: zone.id });
+      if (!wasContested) ctx.events.push({ type: 'ZoneContested', zoneId: zone.id });
       zone.contender = null;
       continue; // CONTESTED_FREEZES_PROGRESS — hold, don't revert.
     }

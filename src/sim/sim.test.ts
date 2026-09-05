@@ -259,6 +259,68 @@ describe('command surface hygiene', () => {
   });
 });
 
+describe('zone contest events', () => {
+  function addStandoffUnit(state: ReturnType<typeof createVerticalSliceMission>, owner: 'player' | 'ai', pos: { x: number; y: number }): void {
+    const unitId = asId<UnitId>(state.nextId++);
+    // Zero-damage chassis so the two units never fight — an unbroken contest,
+    // not one interrupted by a death.
+    const maxHp = C.CHASSIS_HP.jammer;
+    state.units.push({
+      id: unitId,
+      owner,
+      chassis: 'jammer',
+      squadId: null,
+      firmware: owner,
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...pos },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: null,
+      laneRevision: 0,
+      detached: true,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+  }
+
+  it('emits ZoneContested once per contest, not once per tick (F2)', () => {
+    const state = createVerticalSliceMission(6);
+    const zone = state.zones[0];
+    addStandoffUnit(state, 'player', zone.center);
+    addStandoffUnit(state, 'ai', zone.center);
+
+    const sim = new Simulation(state);
+    const eventLog: string[] = [];
+    for (let i = 0; i < 18; i++) {
+      for (const e of sim.advance()) eventLog.push(e.type);
+    }
+
+    expect(eventLog.filter((t) => t === 'ZoneContested')).toHaveLength(1);
+    expect(sim.state.zones.find((z) => z.id === zone.id)!.contested).toBe(true);
+  });
+
+  it('emits ZoneContested on the tick a contest actually begins, not a tick late', () => {
+    const state = createVerticalSliceMission(6);
+    const zone = state.zones[0];
+    // Player alone first, uncontested, accruing progress.
+    addStandoffUnit(state, 'player', zone.center);
+    const sim = new Simulation(state);
+    sim.advance();
+    sim.advance();
+
+    // Now the AI arrives — this is the tick the contest actually starts.
+    addStandoffUnit(sim.state, 'ai', zone.center);
+    const events = sim.advance();
+
+    expect(events.map((e) => e.type)).toContain('ZoneContested');
+  });
+});
+
 describe('movement holds at uncaptured zones', () => {
   it('halts a unit standing in an unowned zone, then releases it once captured', () => {
     const state = createVerticalSliceMission(5);
