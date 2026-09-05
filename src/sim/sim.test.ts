@@ -547,6 +547,51 @@ describe('movement holds at uncaptured zones', () => {
   });
 });
 
+describe('forward landing zone (F6)', () => {
+  it('opens the forward LZ when the centre zone is captured', () => {
+    const state = createVerticalSliceMission(12);
+    const centerZone = state.zones.find((z) => z.center.x === 500)!;
+    expect(centerZone.lzId).not.toBeNull();
+
+    const forwardLz = state.landingZones.find((lz) => lz.id === centerZone.lzId)!;
+    expect(forwardLz.active).toBe(false);
+
+    const unitId = asId<UnitId>(state.nextId++);
+    state.units.push({
+      id: unitId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...centerZone.center },
+      vel: { x: 0, y: 0 },
+      hp: C.CHASSIS_HP.tank,
+      maxHp: C.CHASSIS_HP.tank,
+      laneId: null,
+      laneRevision: 0,
+      detached: true,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    const sim = new Simulation(state);
+    const eventLog: string[] = [];
+    for (let i = 0; i < C.CAPTURE_TICKS + 1; i++) {
+      for (const e of sim.advance()) eventLog.push(e.type);
+    }
+
+    expect(eventLog).toContain('ForwardLzOpened');
+    const opened = sim.state.landingZones.find((lz) => lz.id === centerZone.lzId)!;
+    expect(opened.active).toBe(true);
+    expect(opened.owner).toBe('player');
+  });
+});
+
 describe('capturing state (F7)', () => {
   it('reports capturing, not moving, while holding an unowned zone', () => {
     const state = createVerticalSliceMission(11);
