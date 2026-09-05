@@ -4,7 +4,7 @@ import { createVerticalSliceMission } from './mission';
 import { Simulation, dropIntervalFor, rolledBackVersion } from './sim';
 import { runHeadless } from '../app/clock';
 import { asId, AiVersion } from './types';
-import type { Squad, SquadId, Unit, UnitId } from './types';
+import type { LaneId, Squad, SquadId, Unit, UnitId } from './types';
 import { unitDamage, unitSpeed } from './systems/unitStats';
 import * as C from './config';
 
@@ -70,6 +70,7 @@ describe('squad reinforcement', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     };
@@ -140,6 +141,7 @@ describe('mounting', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -170,6 +172,7 @@ describe('mounting', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -200,6 +203,63 @@ describe('mounting', () => {
     const otherSquad = sim.state.squads.find((s) => s.id === otherSquadId);
     expect(otherSquad).toBeDefined();
     expect(otherSquad!.unitId).not.toBe(vehicleId);
+  });
+
+  it('only lets one squad claim a vehicle across two mounted lanes sharing a factory', () => {
+    const state = createVerticalSliceMission(3);
+    const factory = state.factories.find((f) => f.owner === 'player')!;
+
+    // A second mounted lane out of the same factory — the cross-lane case
+    // the per-lane unclaimedSlots tally couldn't see.
+    const laneBId = asId<LaneId>(state.nextId++);
+    state.lanes.push({
+      id: laneBId,
+      owner: 'player',
+      path: [{ ...factory.pos }, { x: factory.pos.x, y: factory.pos.y - 100 }],
+      mounted: true,
+      revision: 0,
+      sourceLzId: null,
+      sourceFactoryId: factory.id,
+    });
+
+    const vehicleId = asId<UnitId>(state.nextId++);
+    const maxHp = C.CHASSIS_HP.tank;
+    state.units.push({
+      id: vehicleId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...factory.pos },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: null,
+      laneRevision: 0,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      attackCooldown: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+    factory.parked.push(vehicleId);
+
+    const s1 = makeFootSquad(state, { x: factory.pos.x - 5, y: factory.pos.y });
+    // s2 rides laneB instead of the default player lane (laneA).
+    const s2 = makeFootSquad(state, { x: factory.pos.x + 5, y: factory.pos.y });
+    state.units.find((u) => u.id === s2.unitId)!.laneId = laneBId;
+
+    const sim = new Simulation(state);
+    sim.advance();
+
+    const mountingCount = [s1, s2].filter(
+      (s) => sim.state.units.find((u) => u.id === s.unitId)?.state === 'mounting',
+    ).length;
+    expect(mountingCount).toBe(1); // not both, even though they're on different lanes
   });
 });
 
@@ -244,6 +304,7 @@ describe('command surface hygiene', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -319,6 +380,7 @@ describe('zone contest events', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -411,7 +473,8 @@ describe('spatial grid resolves entities without going stale (F10)', () => {
       detached: true,
       manualTarget: null,
       state: 'engaging',
-      stateTimer: C.ATTACK_COOLDOWN_TICKS - 1,
+      stateTimer: 0,
+      attackCooldown: C.ATTACK_COOLDOWN_TICKS - 1,
       targetId: aiId,
       effectiveVersion: AiVersion.V1,
     });
@@ -435,6 +498,7 @@ describe('spatial grid resolves entities without going stale (F10)', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -487,6 +551,7 @@ describe('mission is winnable (F1)', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -531,6 +596,7 @@ describe('movement holds at uncaptured zones', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -610,6 +676,7 @@ describe('forward landing zone (F6)', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -652,6 +719,7 @@ describe('capturing state (F7)', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     });
@@ -686,6 +754,7 @@ describe('balance multipliers', () => {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: AiVersion.V1,
     };
@@ -701,9 +770,8 @@ describe('balance multipliers', () => {
   });
 
   it('applies GLOBAL_SPEED_MULTIPLIER to every unit regardless of side', () => {
-    const state = createVerticalSliceMission(1);
-    expect(unitSpeed(state, makeTank('player'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
-    expect(unitSpeed(state, makeTank('ai'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
+    expect(unitSpeed(makeTank('player'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
+    expect(unitSpeed(makeTank('ai'))).toBeCloseTo(C.CHASSIS_SPEED.tank * C.GLOBAL_SPEED_MULTIPLIER, 6);
   });
 });
 

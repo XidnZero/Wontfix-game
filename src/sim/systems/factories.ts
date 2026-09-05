@@ -23,7 +23,7 @@ export function stepFactories(ctx: TickContext): void {
     if (isPlayer && factory.parked.length >= C.PARKING_CAP) continue;
 
     factory.buildTimer++;
-    const buildTime = C.BUILD_TICKS[factory.producing] ?? C.BUILD_TICKS.tank;
+    const buildTime = C.BUILD_TICKS[factory.producing];
     if (factory.buildTimer < buildTime) continue;
 
     factory.buildTimer = 0;
@@ -58,6 +58,7 @@ export function stepFactories(ctx: TickContext): void {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: ctx.state.ai.version,
     });
