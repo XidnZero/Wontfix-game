@@ -13,12 +13,12 @@ export function findSquad(state: MissionState, unit: Unit): Squad | null {
   return state.squads.find((s) => s.id === unit.squadId) ?? null;
 }
 
-export function unitSpeed(state: MissionState, unit: Unit): number {
+export function unitSpeed(unit: Unit): number {
   const base = unit.chassis !== null ? (C.CHASSIS_SPEED[unit.chassis] ?? C.FOOT_SPEED) : C.FOOT_SPEED;
   return base * C.GLOBAL_SPEED_MULTIPLIER;
 }
 
-export function unitRange(state: MissionState, unit: Unit): number {
+export function unitRange(unit: Unit): number {
   if (unit.chassis !== null) return C.CHASSIS_RANGE[unit.chassis] ?? 0;
   return C.FOOT_RANGE;
 }

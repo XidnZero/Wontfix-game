@@ -64,6 +64,7 @@ export function stepDropships(ctx: TickContext): void {
       manualTarget: null,
       state: 'moving',
       stateTimer: 0,
+      attackCooldown: 0,
       targetId: null,
       effectiveVersion: ctx.state.ai.version,
     });

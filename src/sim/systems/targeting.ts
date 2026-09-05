@@ -29,7 +29,7 @@ export function stepTargeting(ctx: TickContext): void {
     const enemyOwner = enemyOf(unit.owner);
     if (!enemyOwner) continue;
 
-    const range = unitRange(ctx.state, unit);
+    const range = unitRange(unit);
     const nearby = ctx.grid.near(unit.pos.x, unit.pos.y, C.AGGRO_RANGE);
 
     let bestId: Unit['id'] | null = null;
@@ -48,7 +48,13 @@ export function stepTargeting(ctx: TickContext): void {
 
     unit.targetId = bestId;
     const nowEngaging = bestId !== null && bestDist2 <= range * range;
-    if (nowEngaging && unit.state !== 'engaging') unit.stateTimer = 0;
+    if (nowEngaging && unit.state !== 'engaging') {
+      unit.stateTimer = 0;
+      // A fresh engagement doesn't inherit a leftover cooldown count from
+      // whatever this unit was doing before — same windup every time it
+      // newly starts a fight.
+      unit.attackCooldown = 0;
+    }
     // Runs after movement.ts's own 'capturing' assignment (see stepMovement)
     // and would otherwise clobber it every tick — a unit holding a point
     // deliberately would read as 'moving' while standing still.

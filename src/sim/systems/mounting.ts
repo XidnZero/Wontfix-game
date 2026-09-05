@@ -33,6 +33,7 @@ function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void
     // got grabbed out from under it; go back to walking.
     footUnit.state = 'moving';
     footUnit.stateTimer = 0;
+    footUnit.attackCooldown = 0;
     return;
   }
 
@@ -50,6 +51,7 @@ function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void
   vehicle.manualTarget = footUnit.manualTarget;
   vehicle.state = 'moving';
   vehicle.stateTimer = 0;
+  vehicle.attackCooldown = 0;
   vehicle.pos = { ...footUnit.pos };
 
   const squad = ctx.state.squads.find((s) => s.id === footUnit.squadId);
@@ -67,6 +69,16 @@ function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void
 }
 
 export function stepMounting(ctx: TickContext): void {
+  // Tallied once per factory, up front, rather than per-lane: two mounted
+  // lanes sharing one sourceFactoryId used to each recompute their own count
+  // from the same factory.parked array, so both could see the one parked
+  // vehicle as free and both start mounting it — the double-mount bug from
+  // ac626bb, still reachable across lanes even after that fix.
+  const unclaimedByFactory = new Map<Factory['id'], number>();
+  for (const factory of ctx.state.factories) {
+    unclaimedByFactory.set(factory.id, factory.parked.filter((id) => isAvailable(ctx, id)).length);
+  }
+
   for (const lane of ctx.state.lanes) {
     if (!lane.mounted || lane.sourceFactoryId === null) continue;
     const factory = ctx.state.factories.find((f) => f.id === lane.sourceFactoryId);
@@ -76,14 +88,6 @@ export function stepMounting(ctx: TickContext): void {
       (u) => u.chassis === null && u.squadId !== null && u.laneId === lane.id,
     );
 
-    // How many parked vehicles are still unclaimed this tick. Checking
-    // availability per-candidate without this would let two squads that
-    // arrive on the same tick both see the one parked vehicle as free and
-    // both start mounting it — only one can actually finish, but the other
-    // wastes MOUNT_TICKS frozen for nothing, which reads as the vehicle
-    // having taken two squads.
-    let unclaimedSlots = factory.parked.filter((id) => isAvailable(ctx, id)).length;
-
     for (const unit of candidates) {
       if (unit.state === 'mounting') {
         unit.stateTimer--;
@@ -91,14 +95,15 @@ export function stepMounting(ctx: TickContext): void {
         continue;
       }
 
-      if (unclaimedSlots <= 0) continue;
+      const unclaimed = unclaimedByFactory.get(factory.id) ?? 0;
+      if (unclaimed <= 0) continue;
       const dx = unit.pos.x - factory.pos.x;
       const dy = unit.pos.y - factory.pos.y;
       if (dx * dx + dy * dy > C.MOUNT_RADIUS * C.MOUNT_RADIUS) continue;
 
       unit.state = 'mounting';
       unit.stateTimer = C.MOUNT_TICKS;
-      unclaimedSlots--;
+      unclaimedByFactory.set(factory.id, unclaimed - 1);
     }
   }
 }

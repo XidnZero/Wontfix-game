@@ -130,7 +130,7 @@ export function stepMovement(ctx: TickContext): void {
       continue;
     }
 
-    const speed = unitSpeed(ctx.state, unit);
+    const speed = unitSpeed(unit);
     const desired = normalize(toDest);
 
     let sepX = 0;

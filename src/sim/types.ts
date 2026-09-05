@@ -129,7 +129,10 @@ export interface Unit {
   manualTarget: Vec2 | null;
 
   state: UnitState;
+  /** Duration in the current state only — see attackCooldown for combat's own timer. */
   stateTimer: number;
+  /** Ticks since this unit's last shot, counted up independently of state. */
+  attackCooldown: number;
   targetId: UnitId | null;
 
   /** Recomputed each tick from jammer auras. Never persisted as authority. */

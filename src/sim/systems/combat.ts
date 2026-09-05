@@ -13,9 +13,9 @@ export function stepCombat(ctx: TickContext): void {
   for (const unit of ctx.state.units) {
     if (unit.state !== 'engaging' || unit.targetId === null) continue;
 
-    unit.stateTimer++;
-    if (unit.stateTimer < C.ATTACK_COOLDOWN_TICKS) continue;
-    unit.stateTimer = 0;
+    unit.attackCooldown++;
+    if (unit.attackCooldown < C.ATTACK_COOLDOWN_TICKS) continue;
+    unit.attackCooldown = 0;
 
     const target = ctx.grid.byId(unit.targetId);
     if (!target) {

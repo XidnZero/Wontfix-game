@@ -6,6 +6,8 @@
  * what lets you run the sim headless in Node against a swept range of values.
  */
 
+import type { Chassis } from './types';
+
 // ---------------------------------------------------------------------------
 // Clock
 // ---------------------------------------------------------------------------
@@ -72,6 +74,7 @@ export const DROPSHIP_APPROACH_TICKS = secs(4);
 // ---------------------------------------------------------------------------
 
 export const SQUAD_SIZE = 5;
+/** Waiting on whatever promotes a Squad's veterancy field — no system does yet. */
 export const MAX_VETERANCY = 3;
 
 /** Ticks to top a thinned squad back up while standing on a friendly LZ. */
@@ -95,12 +98,26 @@ export const PARKING_CAP = 1;
  */
 export const PARKING_OFFSET_Y = -34;
 
-/** Per-chassis build time, in ticks. */
-export const BUILD_TICKS: Record<string, number> = {
+/**
+ * Per-chassis build time, in ticks. Keyed by the full Chassis union (not
+ * Record<string, ...>) on purpose: a chassis missing an entry here is a
+ * compile error, not a silent runtime fallback to some other chassis's time.
+ */
+export const BUILD_TICKS: Record<Chassis, number> = {
   scout: secs(10),
   tank: secs(18),
   jammer: secs(16),
   repair: secs(14),
+  // AI hardware is built on the same production line as the player's
+  // (types.ts: "variants of human hardware"). Times climb with version
+  // pressure so a v3 vehicle reads as a bigger commitment than a v1 one, not
+  // just a reskin.
+  aiScout: secs(10),
+  aiTank: secs(18),
+  boarder: secs(16),
+  relay: secs(20),
+  airgapped: secs(22),
+  assembler: secs(30),
 };
 
 // ---------------------------------------------------------------------------
@@ -124,10 +141,16 @@ export const MOUNT_RADIUS = 40;
 /**
  * Target: a crewed tank should be worth roughly this many on-foot squads in
  * combat power, or nobody takes the bet. The single biggest balance dial.
+ * Currently a design target only — nothing in unitStats.ts checks fielded
+ * tanks against it yet.
  */
 export const TANK_POWER_RATIO = 2.0;
 
-/** Fraction of maxHp below which a vehicle reads as visibly damaged. */
+/**
+ * Fraction of maxHp below which a vehicle reads as visibly damaged. Waiting
+ * on render.ts drawing that state — the render layer currently only fades
+ * alpha continuously with hpFrac, nothing reads this threshold.
+ */
 export const DAMAGED_THRESHOLD = 0.4;
 
 // ---------------------------------------------------------------------------
@@ -136,10 +159,19 @@ export const DAMAGED_THRESHOLD = 0.4;
 
 export const REBOOT_TICKS = secs(8);
 
-/** Ticks of continuous exposure inside enemy territory before reclaim fires. */
+/**
+ * Ticks of continuous exposure inside enemy territory before reclaim fires.
+ * Waiting on stepReclaim (systems/reclaim.ts), stubbed for the vertical
+ * slice — nothing sets Unit.reclaimExposure yet for this to act on.
+ */
 export const RECLAIM_TICKS = secs(5);
 
-/** Ticks to wipe borrowed firmware, making a vehicle permanently yours. */
+/**
+ * Ticks to wipe borrowed firmware, making a vehicle permanently yours.
+ * Waiting on the same stub as RECLAIM_TICKS above — see unitStats.ts's
+ * unitDamage doc comment for where WIPED_VEHICLE_PENALTY gets wired in once
+ * reboot/reclaim/firmware-wipe exist.
+ */
 export const FIRMWARE_WIPE_TICKS = secs(12);
 
 /** Combat penalty applied to a wiped (owned) ex-enemy vehicle. */
@@ -186,7 +218,12 @@ export const END_OF_LIFE_RIPPLE_TICKS = secs(12);
 /** Uniform grid cell size for proximity queries. Not a quadtree. */
 export const SPATIAL_CELL_SIZE = 64;
 
-/** Flow field resolution, in world units per cell. */
+/**
+ * Flow field resolution, in world units per cell. Waiting on movement.ts
+ * actually building a discretized flow field — the vertical slice's open,
+ * terrain-free map (README) lets it get away with a polyline projection
+ * instead, per movement.ts's file doc comment.
+ */
 export const FLOW_CELL_SIZE = 16;
 
 // ---------------------------------------------------------------------------
@@ -290,6 +327,10 @@ export const AGGRO_RANGE = 160;
 
 export const ATTACK_COOLDOWN_TICKS = secs(1);
 
+/**
+ * Waiting on the repair chassis actually healing nearby allies — it exists in
+ * types.ts/config.ts (CHASSIS_HP.repair etc.) but no system reads this yet.
+ */
 export const REPAIR_RATE_PER_TICK = 2;
 
 // ---------------------------------------------------------------------------
