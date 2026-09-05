@@ -34,6 +34,7 @@ export function createVerticalSliceMission(seed: number): MissionState {
   const aiFactoryId = alloc<FactoryId>();
   const playerLzId = alloc<LzId>();
   const aiLzId = alloc<LzId>();
+  const forwardLzId = alloc<LzId>();
   const zoneWestId = alloc<ZoneId>();
   const zoneCenterId = alloc<ZoneId>();
   const zoneEastId = alloc<ZoneId>();
@@ -48,11 +49,15 @@ export function createVerticalSliceMission(seed: number): MissionState {
   const landingZones: LandingZone[] = [
     { id: playerLzId, pos: { x: 60, y: 300 }, owner: 'player', active: true },
     { id: aiLzId, pos: { x: 940, y: 300 }, owner: 'ai', active: true },
+    // Forward LZ at the centre zone — inactive until captured (capture.ts
+    // flips it and fires ForwardLzOpened). The two flanking zones stay
+    // without one; only the centre is worth a forward drop point.
+    { id: forwardLzId, pos: { x: 500, y: 300 }, owner: 'neutral', active: false },
   ];
 
   const zones: Zone[] = [
     { id: zoneWestId, center: { x: 320, y: 300 }, radius: 45, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
-    { id: zoneCenterId, center: { x: 500, y: 300 }, radius: 53, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
+    { id: zoneCenterId, center: { x: 500, y: 300 }, radius: 53, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: forwardLzId },
     { id: zoneEastId, center: { x: 680, y: 300 }, radius: 45, owner: 'neutral', captureProgress: 0, contender: null, contested: false, lzId: null },
   ];
 
