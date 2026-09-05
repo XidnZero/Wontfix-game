@@ -321,6 +321,56 @@ describe('zone contest events', () => {
   });
 });
 
+describe('mission is winnable (F1)', () => {
+  it('reaches won after a player unit holds the AI factory uncontested', () => {
+    const state = createVerticalSliceMission(8);
+    const aiFactory = state.factories.find((f) => f.owner === 'ai')!;
+
+    // Harmless AI output for the duration: this test is about the capture/win
+    // mechanic, not about surviving AI tank fire, and capture easily
+    // outruns the AI's first production cycle anyway (FACTORY_CAPTURE_TICKS
+    // well under BUILD_TICKS.tank) — this just keeps the test independent of
+    // that timing relationship.
+    aiFactory.producing = 'jammer';
+
+    const capturerId = asId<UnitId>(state.nextId++);
+    const maxHp = C.CHASSIS_HP.tank;
+    state.units.push({
+      id: capturerId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...aiFactory.pos },
+      vel: { x: 0, y: 0 },
+      hp: maxHp,
+      maxHp,
+      laneId: null,
+      laneRevision: 0,
+      detached: true,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    const sim = new Simulation(state);
+    const eventLog: string[] = [];
+    runHeadless(sim, C.FACTORY_CAPTURE_TICKS + C.END_OF_LIFE_RIPPLE_TICKS + 100, (events) => {
+      for (const e of events) eventLog.push(e.type);
+    });
+
+    expect(eventLog).toContain('FactoryCaptured');
+    expect(eventLog).toContain('EndOfLifeIssued');
+    expect(eventLog).toContain('MissionWon');
+    expect(sim.state.phase).toBe('won');
+    expect(sim.state.factories.every((f) => f.owner === 'player')).toBe(true);
+  });
+});
+
 describe('movement holds at uncaptured zones', () => {
   it('halts a unit standing in an unowned zone, then releases it once captured', () => {
     const state = createVerticalSliceMission(5);

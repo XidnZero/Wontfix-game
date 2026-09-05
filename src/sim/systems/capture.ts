@@ -9,10 +9,10 @@
 
 import * as C from '../config';
 import type { TickContext } from '../sim';
-import type { Owner, Zone } from '../types';
+import type { Owner, Vec2 } from '../types';
 
-function contenderAt(ctx: TickContext, zone: Zone): { contender: Owner | null; contested: boolean } {
-  const nearby = ctx.grid.near(zone.center.x, zone.center.y, zone.radius);
+function contenderNear(ctx: TickContext, center: Vec2, radius: number): { contender: Owner | null; contested: boolean } {
+  const nearby = ctx.grid.near(center.x, center.y, radius);
   let hasPlayer = false;
   let hasAi = false;
 
@@ -29,14 +29,14 @@ function contenderAt(ctx: TickContext, zone: Zone): { contender: Owner | null; c
   return { contender: null, contested: false };
 }
 
-export function stepCapture(ctx: TickContext): void {
+function stepZoneCapture(ctx: TickContext): void {
   for (const zone of ctx.state.zones) {
     // Captured before `contested` is overwritten below: `zone.contender` is
     // nulled the instant a contest starts (two lines down), so it can't be
     // used as the edge detector — that combination used to fire ZoneContested
     // every tick of a contest instead of once at the start.
     const wasContested = zone.contested;
-    const { contender, contested } = contenderAt(ctx, zone);
+    const { contender, contested } = contenderNear(ctx, zone.center, zone.radius);
     zone.contested = contested;
 
     if (contested) {
@@ -78,4 +78,46 @@ export function stepCapture(ctx: TickContext): void {
       }
     }
   }
+}
+
+/**
+ * Factories flip the same way zones do: uncontested presence over
+ * FACTORY_CAPTURE_TICKS. This is what makes the mission winnable at all — see
+ * winLose.ts, which has always required every factory to be player-owned but
+ * had nothing that could ever change Factory.owner.
+ */
+function stepFactoryCapture(ctx: TickContext): void {
+  for (const factory of ctx.state.factories) {
+    const { contender, contested } = contenderNear(ctx, factory.pos, C.FACTORY_CAPTURE_RADIUS);
+
+    if (contested) {
+      factory.contender = null;
+      continue; // Same freeze-while-contested rule as zones.
+    }
+
+    if (contender === null || contender === factory.owner) {
+      factory.contender = null;
+      factory.captureProgress = 0;
+      continue;
+    }
+
+    factory.contender = contender;
+    factory.captureProgress += 1;
+
+    if (factory.captureProgress >= C.FACTORY_CAPTURE_TICKS) {
+      factory.owner = contender;
+      factory.contender = null;
+      factory.captureProgress = 0;
+      // The previous owner's uncrewed vehicles must not become the captor's
+      // to mount — the units themselves are left alone as derelicts (see
+      // reboot.ts), only the parking claim on them is dropped.
+      factory.parked = [];
+      ctx.events.push({ type: 'FactoryCaptured', factoryId: factory.id, by: contender });
+    }
+  }
+}
+
+export function stepCapture(ctx: TickContext): void {
+  stepZoneCapture(ctx);
+  stepFactoryCapture(ctx);
 }

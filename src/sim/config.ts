@@ -38,6 +38,15 @@ export const DIMINISHING_RETURNS_THRESHOLD = 0.6;
 /** Multiplier applied to territory gains beyond the threshold. */
 export const DIMINISHING_RETURNS_FACTOR = 0.35;
 
+/**
+ * A factory is captured the same way a zone is: uncontested presence over
+ * time. Placeholder balance numbers, like the movement/combat section below —
+ * bigger prize than a zone, so both slower and wider until a playtest gives
+ * real numbers.
+ */
+export const FACTORY_CAPTURE_TICKS = secs(6);
+export const FACTORY_CAPTURE_RADIUS = 60;
+
 // ---------------------------------------------------------------------------
 // Dropships (the player's only source of crews)
 // ---------------------------------------------------------------------------
