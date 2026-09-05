@@ -16,7 +16,10 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
         ctx.state.lanes.push({
           id,
           owner: 'player',
-          path: command.path,
+          // Deep-copy: keeping the caller's array/Vec2 objects would let code
+          // outside the sim mutate state.lanes after the tick returns, with
+          // no tick() call in sight — see the README's rule 3.
+          path: command.path.map((p) => ({ x: p.x, y: p.y })),
           mounted: command.mounted,
           revision: 0,
           sourceLzId: command.sourceLzId,
@@ -28,7 +31,7 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
       case 'RedrawLane': {
         const lane = ctx.state.lanes.find((l) => l.id === command.laneId);
         if (!lane) break;
-        lane.path = command.path;
+        lane.path = command.path.map((p) => ({ x: p.x, y: p.y }));
         lane.revision++;
         break;
       }
