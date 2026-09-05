@@ -547,6 +547,41 @@ describe('movement holds at uncaptured zones', () => {
   });
 });
 
+describe('replay and quickload hygiene (F8/F9)', () => {
+  it('replay() carries the original seed even after rngState has moved on', () => {
+    const sim = new Simulation(createVerticalSliceMission(4242));
+    runHeadless(sim, C.secs(30));
+
+    expect(sim.state.rngState).not.toBe(4242); // moved on after the first random() call
+    const replay = sim.replay();
+    expect(replay.seed).toBe(4242);
+    expect(replay.mapId).toBe(C.MAP_ID);
+    expect(replay.log).toBe(sim.log);
+  });
+
+  it('loadState replaces state and clears queued/log from the discarded run', () => {
+    const sim = new Simulation(createVerticalSliceMission(1));
+    const playerFactoryId = sim.state.factories.find((f) => f.owner === 'player')!.id;
+    // Queued but not yet applied — advance() hasn't run since.
+    sim.issue({ type: 'SetFactoryProduction', factoryId: playerFactoryId, chassis: 'jammer' });
+    expect(sim.log.length).toBe(1);
+
+    // A second mission from mission.ts allocates ids identically, so its
+    // player factory has the same numeric id — the scenario where a leftover
+    // queued command would silently land on the wrong run's state.
+    const otherState = createVerticalSliceMission(2);
+    otherState.tick = 999;
+    sim.loadState(JSON.stringify(otherState));
+
+    expect(sim.state.tick).toBe(999);
+    expect(sim.log.length).toBe(0);
+
+    sim.advance();
+    const factory = sim.state.factories.find((f) => f.id === playerFactoryId)!;
+    expect(factory.producing).not.toBe('jammer');
+  });
+});
+
 describe('forward landing zone (F6)', () => {
   it('opens the forward LZ when the centre zone is captured', () => {
     const state = createVerticalSliceMission(12);

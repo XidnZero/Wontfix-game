@@ -243,6 +243,12 @@ export type MissionPhase =
 
 export interface MissionState {
   tick: number;
+  /**
+   * The mission's starting seed, written once and never mutated. rngState
+   * (below) overwrites itself on the very first random() call, so without
+   * this a replay would have nothing to seed the PRNG with after tick one.
+   */
+  seed: number;
   /** Deterministic PRNG state. There is no Math.random anywhere in sim/. */
   rngState: number;
   phase: MissionPhase;

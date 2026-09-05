@@ -293,6 +293,16 @@ export const ATTACK_COOLDOWN_TICKS = secs(1);
 export const REPAIR_RATE_PER_TICK = 2;
 
 // ---------------------------------------------------------------------------
+// Replay
+// ---------------------------------------------------------------------------
+
+/**
+ * There is only one map in the vertical slice. Real map selection can replace
+ * this with a lookup once there's more than one Replay.mapId to choose from.
+ */
+export const MAP_ID = 'vertical-slice';
+
+// ---------------------------------------------------------------------------
 // Design constraints, checked by instrumentation rather than enforced by code
 // ---------------------------------------------------------------------------
 
