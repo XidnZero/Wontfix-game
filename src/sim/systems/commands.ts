@@ -13,6 +13,14 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
     switch (command.type) {
       case 'CreateLane': {
         const id = asId<LaneId>(ctx.state.nextId++);
+        // A source naming furniture the player doesn't own is nulled rather
+        // than rejecting the whole command: the lane itself is harmless (it's
+        // always created owner:'player'), it's only the free ride on someone
+        // else's factory/LZ output that's the exploit. This is what closed
+        // off routing enemy production down a player-drawn path — see the
+        // matching check in factories.ts.
+        const sourceFactory = ctx.state.factories.find((f) => f.id === command.sourceFactoryId);
+        const sourceLz = ctx.state.landingZones.find((l) => l.id === command.sourceLzId);
         ctx.state.lanes.push({
           id,
           owner: 'player',
@@ -22,15 +30,15 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
           path: command.path.map((p) => ({ x: p.x, y: p.y })),
           mounted: command.mounted,
           revision: 0,
-          sourceLzId: command.sourceLzId,
-          sourceFactoryId: command.sourceFactoryId,
+          sourceLzId: sourceLz?.owner === 'player' ? command.sourceLzId : null,
+          sourceFactoryId: sourceFactory?.owner === 'player' ? command.sourceFactoryId : null,
         });
         break;
       }
 
       case 'RedrawLane': {
         const lane = ctx.state.lanes.find((l) => l.id === command.laneId);
-        if (!lane) break;
+        if (!lane || lane.owner !== 'player') break;
         lane.path = command.path.map((p) => ({ x: p.x, y: p.y }));
         lane.revision++;
         break;
@@ -38,13 +46,13 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
 
       case 'SetLaneMounted': {
         const lane = ctx.state.lanes.find((l) => l.id === command.laneId);
-        if (lane) lane.mounted = command.mounted;
+        if (lane && lane.owner === 'player') lane.mounted = command.mounted;
         break;
       }
 
       case 'DeleteLane': {
         const idx = ctx.state.lanes.findIndex((l) => l.id === command.laneId);
-        if (idx < 0) break;
+        if (idx < 0 || ctx.state.lanes[idx].owner !== 'player') break;
         ctx.state.lanes.splice(idx, 1);
         for (const unit of ctx.state.units) {
           if (unit.laneId === command.laneId) unit.laneId = null;
@@ -54,21 +62,21 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
 
       case 'GrabUnits': {
         for (const unit of ctx.state.units) {
-          if (command.unitIds.includes(unit.id)) unit.detached = true;
+          if (unit.owner === 'player' && command.unitIds.includes(unit.id)) unit.detached = true;
         }
         break;
       }
 
       case 'IssueMove': {
         for (const unit of ctx.state.units) {
-          if (command.unitIds.includes(unit.id)) unit.manualTarget = { ...command.dest };
+          if (unit.owner === 'player' && command.unitIds.includes(unit.id)) unit.manualTarget = { ...command.dest };
         }
         break;
       }
 
       case 'ReleaseUnits': {
         for (const unit of ctx.state.units) {
-          if (command.unitIds.includes(unit.id)) {
+          if (unit.owner === 'player' && command.unitIds.includes(unit.id)) {
             unit.detached = false;
             unit.manualTarget = null;
           }

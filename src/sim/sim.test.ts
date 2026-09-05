@@ -221,6 +221,42 @@ describe('command surface hygiene', () => {
     expect(lane.path[0].x).toBe(60);
     expect(lane.path).toHaveLength(2);
   });
+
+  it('does not let the player hijack the AI factory output onto their own path (F3)', () => {
+    const state = createVerticalSliceMission(4);
+    const aiFactory = state.factories.find((f) => f.owner === 'ai')!;
+    const aiLane = state.lanes.find((l) => l.owner === 'ai')!;
+    const sim = new Simulation(state);
+
+    // The exploit: delete the AI's own outbound lane, then create a new lane
+    // "sourced" from the AI factory but drawn along the player's path — this
+    // used to make AI-built tanks walk it.
+    sim.issue({ type: 'DeleteLane', laneId: aiLane.id });
+    sim.issue({
+      type: 'CreateLane',
+      sourceLzId: null,
+      sourceFactoryId: aiFactory.id,
+      path: [{ x: 880, y: 300 }, { x: 880, y: 30 }],
+      mounted: false,
+    });
+    sim.advance();
+
+    // DeleteLane and CreateLane's sourceFactoryId are both player-only, so
+    // neither takes effect against AI furniture: the AI's lane survives...
+    expect(sim.state.lanes.some((l) => l.id === aiLane.id)).toBe(true);
+    // ...and the hijack attempt produces a lane with no source, not one wired
+    // to the AI factory.
+    const hijack = sim.state.lanes.find((l) => l.path.some((p) => p.y === 30));
+    expect(hijack?.sourceFactoryId).toBeNull();
+
+    for (let i = 0; i < C.BUILD_TICKS.tank + 5; i++) sim.advance();
+
+    const aiTank = sim.state.units.find((u) => u.owner === 'ai' && u.chassis === 'aiTank');
+    expect(aiTank).toBeDefined();
+    // Still following the real AI lane toward the front, not yanked up to
+    // the hijacked path's y=30.
+    expect(aiTank!.laneId).toBe(aiLane.id);
+  });
 });
 
 describe('movement holds at uncaptured zones', () => {

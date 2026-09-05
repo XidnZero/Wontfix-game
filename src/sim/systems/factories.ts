@@ -30,7 +30,7 @@ export function stepFactories(ctx: TickContext): void {
 
     const outboundLane = isPlayer
       ? null
-      : ctx.state.lanes.find((l) => l.sourceFactoryId === factory.id) ?? null;
+      : ctx.state.lanes.find((l) => l.sourceFactoryId === factory.id && l.owner === factory.owner) ?? null;
 
     const id = asId<UnitId>(ctx.state.nextId++);
     const maxHp = maxHpFor(factory.producing, 0);
