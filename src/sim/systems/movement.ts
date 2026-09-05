@@ -91,7 +91,7 @@ function destinationFor(ctx: TickContext, unit: Unit): Vec2 | null {
  * tick from position rather than a stored flag, so it self-corrects the
  * instant capture.ts flips the zone: no event to consume, nothing to reset.
  */
-function inUnownedZone(ctx: TickContext, unit: Unit): boolean {
+export function inUnownedZone(ctx: TickContext, unit: Unit): boolean {
   if (unit.owner === 'neutral') return false;
   for (const zone of ctx.state.zones) {
     if (zone.owner === unit.owner) continue;
@@ -111,6 +111,7 @@ export function stepMovement(ctx: TickContext): void {
 
     if (inUnownedZone(ctx, unit)) {
       unit.vel = { x: 0, y: 0 };
+      unit.state = 'capturing';
       continue;
     }
 
