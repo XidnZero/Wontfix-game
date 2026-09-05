@@ -71,7 +71,10 @@ export class Clock {
     }
 
     // Paused: hold alpha at 0 so nothing drifts between the last two ticks.
-    const alpha = this.speed === 0 ? 0 : this.accumulator / TICK_MS;
+    // Clamped to 1: the tick loop above can stop at MAX_TICKS_PER_FRAME with
+    // accumulator still a full TICK_MS or more outstanding, which would
+    // otherwise interpolate past currPos instead of sitting on it.
+    const alpha = this.speed === 0 ? 0 : Math.min(1, this.accumulator / TICK_MS);
     this.onRender(alpha);
 
     this.rafId = requestAnimationFrame(this.frame);
