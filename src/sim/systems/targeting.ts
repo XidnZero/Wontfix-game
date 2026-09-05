@@ -13,6 +13,7 @@ import * as C from '../config';
 import type { TickContext } from '../sim';
 import type { Owner, Unit } from '../types';
 import { unitDamage, unitRange } from './unitStats';
+import { inUnownedZone } from './movement';
 
 function enemyOf(owner: Owner): Owner | null {
   if (owner === 'player') return 'ai';
@@ -48,6 +49,9 @@ export function stepTargeting(ctx: TickContext): void {
     unit.targetId = bestId;
     const nowEngaging = bestId !== null && bestDist2 <= range * range;
     if (nowEngaging && unit.state !== 'engaging') unit.stateTimer = 0;
-    unit.state = nowEngaging ? 'engaging' : 'moving';
+    // Runs after movement.ts's own 'capturing' assignment (see stepMovement)
+    // and would otherwise clobber it every tick — a unit holding a point
+    // deliberately would read as 'moving' while standing still.
+    unit.state = nowEngaging ? 'engaging' : inUnownedZone(ctx, unit) ? 'capturing' : 'moving';
   }
 }

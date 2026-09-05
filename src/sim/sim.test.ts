@@ -547,6 +547,44 @@ describe('movement holds at uncaptured zones', () => {
   });
 });
 
+describe('capturing state (F7)', () => {
+  it('reports capturing, not moving, while holding an unowned zone', () => {
+    const state = createVerticalSliceMission(11);
+    const zone = state.zones[0];
+    const lane = state.lanes.find((l) => l.owner === 'player')!;
+
+    const unitId = asId<UnitId>(state.nextId++);
+    state.units.push({
+      id: unitId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...zone.center },
+      vel: { x: 0, y: 0 },
+      hp: C.CHASSIS_HP.tank,
+      maxHp: C.CHASSIS_HP.tank,
+      laneId: lane.id,
+      laneRevision: lane.revision,
+      detached: false,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    const sim = new Simulation(state);
+    sim.advance();
+
+    // Both movement.ts and targeting.ts touch state this tick — targeting
+    // runs later and used to hard-write 'moving' over movement's 'capturing'.
+    expect(sim.state.units.find((u) => u.id === unitId)!.state).toBe('capturing');
+  });
+});
+
 describe('balance multipliers', () => {
   function makeTank(owner: 'player' | 'ai'): Unit {
     const maxHp = C.CHASSIS_HP.tank;
