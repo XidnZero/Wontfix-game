@@ -50,7 +50,17 @@ export interface TickContext {
 export interface SpatialGrid {
   /** Bucket every unit into fixed cells, then query the 9 neighbouring cells. */
   rebuild(units: Unit[]): void;
-  near(x: number, y: number, radius: number): UnitId[];
+  near(x: number, y: number, radius: number): Unit[];
+  /** Resolve a stored id (e.g. Unit.targetId) rather than a position query. */
+  byId(id: UnitId): Unit | undefined;
+  /**
+   * deaths.ts and mounting.ts remove units mid-tick, after this tick's one
+   * rebuild(). Without this, near()/byId() would keep handing out object
+   * references for units no longer in state.units — quietly breaking the
+   * "deaths before capture" rule (README) by letting units killed in combat
+   * still count toward capture the same tick.
+   */
+  forget(id: UnitId): void;
 }
 
 // ---------------------------------------------------------------------------

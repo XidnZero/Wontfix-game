@@ -135,10 +135,8 @@ export function stepMovement(ctx: TickContext): void {
     let sepX = 0;
     let sepY = 0;
     const neighbours = ctx.grid.near(unit.pos.x, unit.pos.y, C.SEPARATION_RADIUS);
-    for (const otherId of neighbours) {
-      if (otherId === unit.id) continue;
-      const other = ctx.state.units.find((u: Unit) => u.id === otherId);
-      if (!other) continue;
+    for (const other of neighbours) {
+      if (other.id === unit.id) continue;
       const away = sub(unit.pos, other.pos);
       const d = len(away);
       if (d < 1e-6 || d >= C.SEPARATION_RADIUS) continue;

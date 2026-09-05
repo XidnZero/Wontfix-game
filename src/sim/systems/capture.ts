@@ -16,9 +16,7 @@ function contenderNear(ctx: TickContext, center: Vec2, radius: number): { conten
   let hasPlayer = false;
   let hasAi = false;
 
-  for (const id of nearby) {
-    const unit = ctx.state.units.find((u) => u.id === id);
-    if (!unit) continue;
+  for (const unit of nearby) {
     if (unit.owner === 'player') hasPlayer = true;
     else if (unit.owner === 'ai') hasAi = true;
   }

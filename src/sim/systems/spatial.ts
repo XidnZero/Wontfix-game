@@ -34,8 +34,8 @@ export function createSpatialGrid(): SpatialGrid {
       }
     },
 
-    near(x: number, y: number, radius: number): UnitId[] {
-      const result: UnitId[] = [];
+    near(x: number, y: number, radius: number): Unit[] {
+      const result: Unit[] = [];
       const r2 = radius * radius;
       const minCx = Math.floor((x - radius) / SPATIAL_CELL_SIZE);
       const maxCx = Math.floor((x + radius) / SPATIAL_CELL_SIZE);
@@ -47,15 +47,26 @@ export function createSpatialGrid(): SpatialGrid {
           const bucket = cells.get(`${cx},${cy}`);
           if (!bucket) continue;
           for (const id of bucket) {
+            // Missing here means the id was forgotten (unit removed mid-tick
+            // by deaths.ts/mounting.ts) — same effect as the stale bucket
+            // entry it leaves behind never being cleaned up.
             const unit = unitsById.get(id);
             if (!unit) continue;
             const dx = unit.pos.x - x;
             const dy = unit.pos.y - y;
-            if (dx * dx + dy * dy <= r2) result.push(id);
+            if (dx * dx + dy * dy <= r2) result.push(unit);
           }
         }
       }
       return result;
+    },
+
+    byId(id: UnitId): Unit | undefined {
+      return unitsById.get(id);
+    },
+
+    forget(id: UnitId): void {
+      unitsById.delete(id);
     },
   };
 }

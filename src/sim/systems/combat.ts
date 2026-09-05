@@ -17,7 +17,7 @@ export function stepCombat(ctx: TickContext): void {
     if (unit.stateTimer < C.ATTACK_COOLDOWN_TICKS) continue;
     unit.stateTimer = 0;
 
-    const target = ctx.state.units.find((u) => u.id === unit.targetId);
+    const target = ctx.grid.byId(unit.targetId);
     if (!target) {
       unit.targetId = null;
       continue;

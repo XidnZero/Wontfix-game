@@ -15,6 +15,10 @@ export function stepDeaths(ctx: TickContext): void {
   if (dead.length === 0) return;
 
   const deadIds = new Set(dead.map((u) => u.id));
+  // Evict from this tick's grid too — capture.ts (and anything else querying
+  // near()/byId() after this point) must not still see a unit combat just
+  // killed. See SpatialGrid.forget in sim.ts.
+  for (const id of deadIds) ctx.grid.forget(id);
 
   for (const unit of dead) {
     ctx.events.push({ type: 'UnitDestroyed', unitId: unit.id, owner: unit.owner });
