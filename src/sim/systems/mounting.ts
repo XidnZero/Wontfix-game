@@ -57,6 +57,9 @@ function finalizeMount(ctx: TickContext, factory: Factory, footUnit: Unit): void
 
   const idx = ctx.state.units.indexOf(footUnit);
   if (idx >= 0) ctx.state.units.splice(idx, 1);
+  // The foot unit is gone mid-tick — forget it in the grid too, same reason
+  // as deaths.ts. See SpatialGrid.forget in sim.ts.
+  ctx.grid.forget(footUnit.id);
 
   if (footUnit.squadId !== null) {
     ctx.events.push({ type: 'SquadMounted', squadId: footUnit.squadId, unitId: vehicle.id });

@@ -347,6 +347,78 @@ describe('spatial grid freshness', () => {
   });
 });
 
+describe('spatial grid resolves entities without going stale (F10)', () => {
+  it('does not let a unit killed in combat this tick count toward capture the same tick', () => {
+    const state = createVerticalSliceMission(10);
+    const zone = state.zones[0];
+
+    const playerId = asId<UnitId>(state.nextId++);
+    const aiId = asId<UnitId>(state.nextId++);
+
+    // Player is already mid-engagement, one tick from firing — targeting.ts
+    // re-affirms 'engaging' this tick (still in range) without resetting the
+    // cooldown, so combat.ts fires this same tick.
+    state.units.push({
+      id: playerId,
+      owner: 'player',
+      chassis: 'tank',
+      squadId: null,
+      firmware: 'player',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...zone.center },
+      vel: { x: 0, y: 0 },
+      hp: C.CHASSIS_HP.tank,
+      maxHp: C.CHASSIS_HP.tank,
+      laneId: null,
+      laneRevision: 0,
+      detached: true,
+      manualTarget: null,
+      state: 'engaging',
+      stateTimer: C.ATTACK_COOLDOWN_TICKS - 1,
+      targetId: aiId,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    // One hit of player tank damage is lethal.
+    state.units.push({
+      id: aiId,
+      owner: 'ai',
+      chassis: 'aiTank',
+      squadId: null,
+      firmware: 'ai',
+      firmwareWipeProgress: 0,
+      reclaimExposure: 0,
+      pos: { ...zone.center },
+      vel: { x: 0, y: 0 },
+      hp: 1,
+      maxHp: C.CHASSIS_HP.aiTank,
+      laneId: null,
+      laneRevision: 0,
+      detached: true,
+      manualTarget: null,
+      state: 'moving',
+      stateTimer: 0,
+      targetId: null,
+      effectiveVersion: AiVersion.V1,
+    });
+
+    const sim = new Simulation(state);
+    const events = sim.advance();
+
+    expect(events.map((e) => e.type)).toContain('UnitDestroyed');
+    expect(sim.state.units.some((u) => u.id === aiId)).toBe(false);
+
+    const capturedZone = sim.state.zones.find((z) => z.id === zone.id)!;
+    // If the dead ai unit were still visible to capture.ts via a stale grid
+    // entry, this zone would read as contested with contender null instead
+    // of uncontested progress toward the player.
+    expect(capturedZone.contested).toBe(false);
+    expect(capturedZone.contender).toBe('player');
+    expect(capturedZone.captureProgress).toBe(1);
+  });
+});
+
 describe('mission is winnable (F1)', () => {
   it('reaches won after a player unit holds the AI factory uncontested', () => {
     const state = createVerticalSliceMission(8);

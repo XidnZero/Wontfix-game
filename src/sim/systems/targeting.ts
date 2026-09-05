@@ -34,10 +34,8 @@ export function stepTargeting(ctx: TickContext): void {
     let bestId: Unit['id'] | null = null;
     let bestDist2 = Infinity;
 
-    for (const id of nearby) {
-      if (id === unit.id) continue;
-      const other = ctx.state.units.find((u) => u.id === id);
-      if (!other || other.owner !== enemyOwner) continue;
+    for (const other of nearby) {
+      if (other.id === unit.id || other.owner !== enemyOwner) continue;
       const dx = other.pos.x - unit.pos.x;
       const dy = other.pos.y - unit.pos.y;
       const d2 = dx * dx + dy * dy;
