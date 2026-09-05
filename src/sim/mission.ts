@@ -99,6 +99,7 @@ export function createVerticalSliceMission(seed: number): MissionState {
 
   return {
     tick: 0,
+    seed,
     rngState: seed,
     phase: 'playing',
     phaseTimer: 0,

@@ -223,7 +223,9 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
             showToast('No save found');
             return;
           }
-          sim.state = JSON.parse(json) as MissionState;
+          // Not `sim.state = JSON.parse(json)` — that leaves `queued` and
+          // `log` from the discarded run still attached to the Simulation.
+          sim.loadState(json);
           selected = new Set();
           showToast('Loaded');
         })

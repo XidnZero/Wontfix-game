@@ -11,7 +11,7 @@
  */
 
 import * as C from './config';
-import type { Command, SimEvent } from './io';
+import type { Command, Replay, SimEvent } from './io';
 import type { MissionState, Unit, UnitId } from './types';
 import { AiVersion } from './types';
 
@@ -254,5 +254,26 @@ export class Simulation {
 
   static restore(json: string): Simulation {
     return new Simulation(JSON.parse(json) as MissionState);
+  }
+
+  /**
+   * state.seed plus this log fully reconstructs the mission (io.ts) — the
+   * save/resume system and the clip-sharing feature, for free.
+   */
+  replay(): Replay {
+    return { seed: this.state.seed, mapId: C.MAP_ID, log: this.log };
+  }
+
+  /**
+   * Replaces state wholesale (a quickload, say) without leaving `queued` and
+   * `log` from the discarded run attached — swapping `state` alone left both
+   * pointing at commands/log entries from a run that no longer exists. Also
+   * why this exists rather than swapping the Simulation instance itself:
+   * Clock holds it by reference.
+   */
+  loadState(json: string): void {
+    this.state = JSON.parse(json) as MissionState;
+    this.queued = [];
+    this.log.length = 0;
   }
 }
