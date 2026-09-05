@@ -321,6 +321,32 @@ describe('zone contest events', () => {
   });
 });
 
+describe('spatial grid freshness', () => {
+  it('counts a unit produced this tick toward capture the same tick', () => {
+    const state = createVerticalSliceMission(9);
+    const zoneEast = state.zones[2];
+    zoneEast.owner = 'player';
+
+    const aiFactory = state.factories.find((f) => f.owner === 'ai')!;
+    // Relocate the factory on top of the zone and put it one tick from
+    // producing, so the freshly spawned unit's very first tick is the one
+    // capture.ts evaluates.
+    aiFactory.pos = { ...zoneEast.center };
+    aiFactory.producing = 'aiTank';
+    aiFactory.buildTimer = C.BUILD_TICKS.tank - 1;
+
+    const sim = new Simulation(state);
+    sim.advance();
+
+    expect(sim.state.units.some((u) => u.owner === 'ai' && u.chassis === 'aiTank')).toBe(true);
+    const zone = sim.state.zones.find((z) => z.id === zoneEast.id)!;
+    // Would still be 0 (and contender null) if the grid built before
+    // production couldn't see the unit spawned this tick.
+    expect(zone.contender).toBe('ai');
+    expect(zone.captureProgress).toBe(1);
+  });
+});
+
 describe('mission is winnable (F1)', () => {
   it('reaches won after a player unit holds the AI factory uncontested', () => {
     const state = createVerticalSliceMission(8);

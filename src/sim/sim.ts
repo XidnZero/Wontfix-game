@@ -64,24 +64,27 @@ export function tick(state: MissionState, commands: Command[]): SimEvent[] {
   //    frame is visible to every system below it.
   applyCommands(ctx, commands);
 
-  // 1. Spatial index. Everything downstream queries this, so it must reflect
-  //    last tick's final positions.
-  ctx.grid.rebuild(state.units);
-
   if (state.phase === 'playing') {
-    // 2. Pressure. Ships a version upgrade every AI_UPGRADE_INTERVAL_TICKS
+    // 1. Pressure. Ships a version upgrade every AI_UPGRADE_INTERVAL_TICKS
     //    after the grace period. Never causes a loss directly.
     stepAiUpgradeClock(ctx);
 
-    // 3. AI planning. Redraws enemy lanes according to the current version.
+    // 2. AI planning. Redraws enemy lanes according to the current version.
     //    v1 walks straight; v2.5 splits and flanks; v3 applies the counter.
     stepAiPlanning(ctx);
 
-    // 4. Production. Factories build continuously, then idle at PARKING_CAP.
+    // 3. Production. Factories build continuously, then idle at PARKING_CAP.
     stepFactories(ctx);
 
-    // 5. Crews. Territory-scaled cadence, diminishing past the threshold.
+    // 4. Crews. Territory-scaled cadence, diminishing past the threshold.
     stepDropships(ctx);
+
+    // 5. Spatial index. Everything downstream queries this, so it must
+    //    reflect last tick's final positions *plus* anything spawned this
+    //    tick above (steps 3-4) — built any earlier and a unit produced or
+    //    dropped this tick is invisible to separation/targeting/capture for
+    //    its entire first tick alive.
+    ctx.grid.rebuild(state.units);
 
     // 6. Lane adoption. A unit picks up its lane's new revision only when it
     //    is not mid-engagement. This is the propagation lag, deliberately.
@@ -127,6 +130,12 @@ export function tick(state: MissionState, commands: Command[]): SimEvent[] {
     // 18. Resolution. Win on all factories; lose on the zero-zone clock.
     stepWinLose(ctx);
   } else if (state.phase === 'endOfLife') {
+    // The spatial index is rebuilt inside the 'playing' branch above, which
+    // this branch skips entirely — rebuild here too so ctx.grid is never
+    // empty for stepEndOfLifeRipple or anything else added under this phase
+    // later.
+    ctx.grid.rebuild(state.units);
+
     // The shutdown ripples over END_OF_LIFE_RIPPLE_TICKS rather than resolving
     // instantly. Watching an army go inert is the payoff, so let it play.
     stepEndOfLifeRipple(ctx);
