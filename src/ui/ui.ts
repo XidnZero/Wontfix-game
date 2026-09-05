@@ -4,8 +4,9 @@
  * into the sim directly.
  *
  * Controls, RTS-standard: left-drag box-selects player units, right-click
- * grabs the selection and sends it to the click point (Tier 2: GrabUnits +
- * IssueMove), 'R' releases the selection back to lane control. A plain click
+ * grabs the selection and sends it to the click point (Tier 2: IssueMove,
+ * which detaches on its own — a move order IS a grab), 'R' releases the
+ * selection back to lane control. A plain click
  * (no drag) on a friendly factory cycles its production through the four
  * player chassis — the only way SetFactoryProduction ever gets issued.
  * Shift+drag redraws the player's one starting lane, sampling points along
@@ -144,7 +145,9 @@ export function createUi(app: Application, sim: Simulation, clock: Clock, platfo
       if (selected.size === 0) return;
       const dest = worldPoint(ev);
       const unitIds = [...selected];
-      sim.issue({ type: 'GrabUnits', unitIds });
+      // IssueMove sets detached itself (commands.ts) — a move order IS a
+      // grab, and one right-click should score one action against the
+      // ACTION_FLOOR_PER_MISSION instrumentation, not two.
       sim.issue({ type: 'IssueMove', unitIds, dest });
     }
   };
