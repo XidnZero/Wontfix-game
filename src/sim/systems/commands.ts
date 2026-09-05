@@ -69,7 +69,15 @@ export function applyCommands(ctx: TickContext, commands: Command[]): void {
 
       case 'IssueMove': {
         for (const unit of ctx.state.units) {
-          if (unit.owner === 'player' && command.unitIds.includes(unit.id)) unit.manualTarget = { ...command.dest };
+          if (unit.owner === 'player' && command.unitIds.includes(unit.id)) {
+            // A move order is a grab: setting detached here (rather than
+            // requiring a paired GrabUnits first) is what makes one
+            // right-click one gesture for playerActionCount — see sim.ts's
+            // Simulation.issue and the ui.ts caller. GrabUnits stays on the
+            // surface for a grab with no destination yet.
+            unit.detached = true;
+            unit.manualTarget = { ...command.dest };
+          }
         }
         break;
       }
