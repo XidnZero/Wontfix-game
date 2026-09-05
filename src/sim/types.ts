@@ -177,6 +177,9 @@ export interface Factory {
   buildTimer: number;
   /** Empty vehicles awaiting crews. Length capped at PARKING_CAP. */
   parked: UnitId[];
+  /** Same uncontested-presence capture mechanic as Zone, see capture.ts. */
+  captureProgress: number;
+  contender: Owner | null;
 }
 
 export interface LandingZone {

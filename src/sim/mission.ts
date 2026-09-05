@@ -41,8 +41,8 @@ export function createVerticalSliceMission(seed: number): MissionState {
   const aiLaneId = alloc<LaneId>();
 
   const factories: Factory[] = [
-    { id: playerFactoryId, pos: { x: 120, y: 300 }, owner: 'player', producing: 'tank', buildTimer: 0, parked: [] },
-    { id: aiFactoryId, pos: { x: 880, y: 300 }, owner: 'ai', producing: 'aiTank', buildTimer: 0, parked: [] },
+    { id: playerFactoryId, pos: { x: 120, y: 300 }, owner: 'player', producing: 'tank', buildTimer: 0, parked: [], captureProgress: 0, contender: null },
+    { id: aiFactoryId, pos: { x: 880, y: 300 }, owner: 'ai', producing: 'aiTank', buildTimer: 0, parked: [], captureProgress: 0, contender: null },
   ];
 
   const landingZones: LandingZone[] = [
