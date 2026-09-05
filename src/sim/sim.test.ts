@@ -203,6 +203,26 @@ describe('mounting', () => {
   });
 });
 
+describe('command surface hygiene', () => {
+  it('does not alias the caller-supplied path array into sim state (F4)', () => {
+    const state = createVerticalSliceMission(2);
+    const sim = new Simulation(state);
+    const path = [{ x: 60, y: 300 }, { x: 500, y: 300 }];
+
+    sim.issue({ type: 'CreateLane', sourceLzId: null, sourceFactoryId: null, path, mounted: false });
+    sim.advance();
+
+    // Mutating the caller's array after the tick must not change sim state —
+    // that would be state changing outside tick(), breaking README rule 3.
+    path[0].x = 99999;
+    path.push({ x: 1, y: 1 });
+
+    const lane = sim.state.lanes.find((l) => l.owner === 'player' && l.sourceFactoryId === null && l.sourceLzId === null)!;
+    expect(lane.path[0].x).toBe(60);
+    expect(lane.path).toHaveLength(2);
+  });
+});
+
 describe('movement holds at uncaptured zones', () => {
   it('halts a unit standing in an unowned zone, then releases it once captured', () => {
     const state = createVerticalSliceMission(5);
